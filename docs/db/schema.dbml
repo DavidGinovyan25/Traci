@@ -68,6 +68,6 @@ Table UserMovie {
   }
 }
 
-Ref: UserMovie.movie_id > Movie.id
-Ref: UserMovie.user_id > User.id
+Ref: UserMovie.movie_id > Movie.id [delete: cascade]
+Ref: UserMovie.user_id > User.id [delete: cascade]
 
