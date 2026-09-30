@@ -1,0 +1,928 @@
+openapi: 3.0.3
+
+info:
+  title: Traci API
+  version: 1.0.0
+  description: REST API for Traci movie tracker
+
+tags:
+  - name: Auth
+    description: Авторизация
+  - name: User
+    description: Ручки пользователя
+  - name: Admin
+    description: Ручки администратора
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+security:
+  - bearerAuth: []
+
+paths:
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Authenticate user
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /catalog:
+    get:
+      tags:
+        - User
+        - Admin
+      summary: Get movie catalog
+      operationId: getCatalog
+      description: Movies are ordered by created_at descending and id ascending.
+      parameters:
+        - name: genre
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/MovieGenre'
+        - name: search
+          in: query
+          required: false
+          description: Search movies by name
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Movie catalog
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MoviePage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - Admin
+      summary: Create movie
+      operationId: createMovie
+      description: ADMIN only
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMovieRequest'
+      responses:
+        '201':
+          description: Movie created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Movie'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /catalog/{movie_id}:
+    parameters:
+      - name: movie_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    get:
+      tags:
+        - User
+        - Admin
+      summary: Get movie by ID
+      operationId: getMovieById
+      responses:
+        '200':
+          description: Movie found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Movie'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    patch:
+      tags:
+        - Admin
+      summary: Update movie
+      operationId: updateMovie
+      description: ADMIN only
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMovieRequest'
+      responses:
+        '200':
+          description: Movie updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Movie'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags:
+        - Admin
+      summary: Delete movie
+      operationId: deleteMovie
+      description: ADMIN only. Deleting a movie also removes it from all user collections.
+      responses:
+        '204':
+          description: Movie deleted
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /collection:
+    get:
+      tags:
+        - User
+      summary: Get current user's movie collection
+      operationId: getCollection
+      description: Collection items are ordered by created_at descending and id ascending.
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/MovieStatus'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: User movie collection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - User
+      summary: Add movie to current user's collection
+      operationId: addMovieToCollection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddMovieToCollectionRequest'
+      responses:
+        '201':
+          description: Movie added to collection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /collection/{movie_id}:
+    parameters:
+      - name: movie_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    get:
+      tags:
+        - User
+      summary: Get movie from current user's collection
+      operationId: getMovieFromCollection
+      responses:
+        '200':
+          description: Movie found in collection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    patch:
+      tags:
+        - User
+      summary: Update movie in current user's collection
+      operationId: updateCollectionItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCollectionItemRequest'
+      responses:
+        '200':
+          description: Collection item updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags:
+        - User
+      summary: Delete movie from current user's collection
+      operationId: deleteMovieFromCollection
+      responses:
+        '204':
+          description: Movie deleted from collection
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /users:
+    get:
+      tags:
+        - Admin
+      summary: Get users
+      operationId: getUsers
+      description: ADMIN only. Users are ordered by username ascending and id ascending.
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: User list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /users/{user_id}:
+    parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    get:
+      tags:
+        - Admin
+      summary: Get user by ID
+      operationId: getUserById
+      description: ADMIN only
+      responses:
+        '200':
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    patch:
+      tags:
+        - Admin
+      summary: Block or unblock user
+      operationId: updateUserBlockStatus
+      description: ADMIN only. Administrator cannot change their own block status.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Administrator cannot change their own block status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+    Offset:
+      name: offset
+      in: query
+      required: false
+      description: Number of items to skip
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+
+  headers:
+    RetryAfter:
+      description: Number of seconds before retrying
+      schema:
+        type: integer
+        minimum: 1
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Unauthorized:
+      description: Authentication failed or JWT is missing, invalid or expired
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Forbidden:
+      description: Access denied or user is blocked
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFound:
+      description: Requested resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Conflict:
+      description: Request conflicts with current resource state
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    TooManyRequests:
+      description: Too many requests
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    Role:
+      type: string
+      enum:
+        - admin
+        - user
+
+    MovieGenre:
+      type: string
+      enum:
+        - ACTION
+        - ADVENTURE
+        - ANIMATION
+        - COMEDY
+        - CRIME
+        - DOCUMENTARY
+        - DRAMA
+        - FAMILY
+        - FANTASY
+        - HISTORY
+        - HORROR
+        - MUSIC
+        - MYSTERY
+        - ROMANCE
+        - SCIENCE_FICTION
+        - THRILLER
+        - WAR
+        - WESTERN
+
+    MovieStatus:
+      type: string
+      enum:
+        - PLANNED
+        - WATCHING
+        - WATCHED
+        - DROPPED
+
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          example: user@example.com
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+
+    LoginResponse:
+      type: object
+      required:
+        - access_token
+        - token_type
+        - expires_in
+      properties:
+        access_token:
+          type: string
+          description: JWT access token
+        token_type:
+          type: string
+          example: Bearer
+        expires_in:
+          type: integer
+          description: JWT lifetime in seconds
+          example: 3600
+
+    Movie:
+      type: object
+      required:
+        - id
+        - name
+        - duration_min
+        - genre
+        - release_year
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Interstellar
+        duration_min:
+          type: integer
+          minimum: 1
+          example: 169
+        genre:
+          $ref: '#/components/schemas/MovieGenre'
+        release_year:
+          type: integer
+          minimum: 1888
+          example: 2014
+        description:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    MoviePage:
+      type: object
+      required:
+        - items
+        - limit
+        - offset
+        - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Movie'
+        limit:
+          type: integer
+          example: 20
+        offset:
+          type: integer
+          example: 0
+        total:
+          type: integer
+          example: 150
+
+    CreateMovieRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - duration_min
+        - genre
+        - release_year
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        duration_min:
+          type: integer
+          minimum: 1
+        genre:
+          $ref: '#/components/schemas/MovieGenre'
+        release_year:
+          type: integer
+          minimum: 1888
+        description:
+          type: string
+          maxLength: 5000
+
+    UpdateMovieRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        duration_min:
+          type: integer
+          minimum: 1
+        genre:
+          $ref: '#/components/schemas/MovieGenre'
+        release_year:
+          type: integer
+          minimum: 1888
+        description:
+          type: string
+          maxLength: 5000
+          nullable: true
+
+    AddMovieToCollectionRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - movie_id
+      properties:
+        movie_id:
+          type: string
+          format: uuid
+        status:
+          allOf:
+            - $ref: '#/components/schemas/MovieStatus'
+          default: PLANNED
+
+    UpdateCollectionItemRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        personal_rating:
+          type: integer
+          minimum: 1
+          maximum: 10
+          nullable: true
+        review:
+          type: string
+          maxLength: 1000
+          nullable: true
+        status:
+          $ref: '#/components/schemas/MovieStatus'
+
+    CollectionItem:
+      type: object
+      required:
+        - movie
+        - status
+        - created_at
+        - updated_at
+      properties:
+        movie:
+          $ref: '#/components/schemas/Movie'
+        personal_rating:
+          type: integer
+          minimum: 1
+          maximum: 10
+          nullable: true
+        review:
+          type: string
+          maxLength: 1000
+          nullable: true
+        status:
+          $ref: '#/components/schemas/MovieStatus'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CollectionPage:
+      type: object
+      required:
+        - items
+        - limit
+        - offset
+        - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CollectionItem'
+        limit:
+          type: integer
+          example: 20
+        offset:
+          type: integer
+          example: 0
+        total:
+          type: integer
+          example: 25
+
+    User:
+      type: object
+      required:
+        - id
+        - role
+        - username
+        - first_name
+        - second_name
+        - email
+        - is_blocked
+      properties:
+        id:
+          type: string
+          format: uuid
+        role:
+          $ref: '#/components/schemas/Role'
+        username:
+          type: string
+          maxLength: 50
+        first_name:
+          type: string
+        second_name:
+          type: string
+        email:
+          type: string
+          format: email
+        is_blocked:
+          type: boolean
+
+    UserPage:
+      type: object
+      required:
+        - items
+        - limit
+        - offset
+        - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+        limit:
+          type: integer
+          example: 20
+        offset:
+          type: integer
+          example: 0
+        total:
+          type: integer
+          example: 100
+
+    UpdateUserRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - is_blocked
+      properties:
+        is_blocked:
+          type: boolean
+          example: true
+
+    ErrorResponse:
+      type: object
+      required:
+        - timestamp
+        - status
+        - error
+        - code
+        - message
+        - path
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          example: '2026-09-30T20:15:30Z'
+        status:
+          type: integer
+          example: 403
+        error:
+          type: string
+          example: Forbidden
+        code:
+          type: string
+          example: USER_BLOCKED
+        message:
+          type: string
+          example: User account is blocked
+        path:
+          type: string
+          example: /collection
+        request_id:
+          type: string
+          format: uuid
+          example: 6fdcf7aa-88f1-47eb-84b2-e161011a63df
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationError'
+
+    ValidationError:
+      type: object
+      required:
+        - field
+        - message
+      properties:
+        field:
+          type: string
+          example: personal_rating
+        message:
+          type: string
+          example: Must be between 1 and 10
