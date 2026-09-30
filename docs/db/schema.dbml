@@ -39,6 +39,7 @@ Table User {
   second_name text [not null]
   email varchar(255) [not null, unique]
   password_hash varchar(255) [not null]
+  is_blocked bool [not null, default: false]
 }
 
 Table Movie {
