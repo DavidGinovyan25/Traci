@@ -1,0 +1,11 @@
+DROP TABLE IF EXISTS user_movies;
+
+DROP TABLE IF EXISTS movies;
+
+DROP TABLE IF EXISTS users;
+
+DROP TYPE IF EXISTS movie_status;
+
+DROP TYPE IF EXISTS movie_genre;
+
+DROP TYPE IF EXISTS role;
