@@ -1,0 +1,63 @@
+@startuml Traci_Container
+
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title Traci — C4 Container Diagram
+
+Person(user, "Пользователь", "Просматривает каталог фильмов и управляет своей личной коллекцией")
+
+Person(admin, "Администратор", "Управляет каталогом фильмов")
+
+System_Boundary(traci, "Traci") {
+
+    Container(
+        frontend,
+        "Web Application",
+        "Frontend",
+        "Предоставляет пользовательский интерфейс для работы с приложением"
+    )
+
+    Container(
+        backend,
+        "Backend Application",
+        "REST API",
+        "Монолитное серверное приложение. Реализует бизнес-логику, авторизацию, управление фильмами и пользовательскими коллекциями"
+    )
+
+    ContainerDb(
+        database,
+        "Database",
+        "PostgreSQL",
+        "Хранит пользователей, фильмы и пользовательские коллекции"
+    )
+}
+
+Rel(
+    user,
+    frontend,
+    "Использует",
+    "HTTPS"
+)
+
+Rel(
+    admin,
+    frontend,
+    "Использует",
+    "HTTPS"
+)
+
+Rel(
+    frontend,
+    backend,
+    "Вызывает API",
+    "HTTPS / REST / JSON"
+)
+
+Rel(
+    backend,
+    database,
+    "Читает и изменяет данные",
+    "SQL"
+)
+
+@enduml
