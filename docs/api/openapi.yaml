@@ -21,6 +21,36 @@ security:
   - bearerAuth: []
 
 paths:
+  /auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Register user
+      operationId: register
+      security: []
+      description: Creates an unblocked account with the user role. Email is normalized to lowercase before storing and login.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User created. Use the login endpoint to obtain an access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
   /auth/login:
     post:
       tags:
@@ -620,6 +650,36 @@ components:
         - WATCHED
         - DROPPED
 
+    RegisterRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - username
+        - first_name
+        - second_name
+        - email
+        - password
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 50
+        first_name:
+          type: string
+          minLength: 1
+        second_name:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+
     LoginRequest:
       type: object
       additionalProperties: false
@@ -741,6 +801,7 @@ components:
           maxLength: 5000
 
     UpdateMovieRequest:
+      description: Omitted fields are unchanged. A null description clears it.
       type: object
       additionalProperties: false
       minProperties: 1
@@ -777,6 +838,7 @@ components:
           default: PLANNED
 
     UpdateCollectionItemRequest:
+      description: Omitted fields are unchanged. A null personal_rating or review clears it.
       type: object
       additionalProperties: false
       minProperties: 1
