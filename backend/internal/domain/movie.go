@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -29,4 +30,19 @@ func NewMovie(name string, durationMin int, genre MovieGenre, releaseYear int, d
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
+}
+
+type MovieFilter struct {
+	Genre  *MovieGenre
+	Search string
+	Limit  int
+	Offset int
+}
+
+type MovieRepository interface {
+	Create(ctx context.Context, movie *Movie) error
+	GetByID(ctx context.Context, id uuid.UUID) (*Movie, error)
+	List(ctx context.Context, filter MovieFilter) (movies []Movie, total int, err error)
+	Update(ctx context.Context, movie *Movie) error
+	Delete(ctx context.Context, id uuid.UUID) error
 }

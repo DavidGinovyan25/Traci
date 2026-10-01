@@ -1,6 +1,10 @@
 package domain
 
-import "github.com/google/uuid"
+import (
+	"context"
+
+	"github.com/google/uuid"
+)
 
 type User struct {
 	ID           uuid.UUID
@@ -24,4 +28,13 @@ func NewUser(username, firstName, secondName, email, passwordHash string) *User 
 		PasswordHash: passwordHash,
 		IsBlocked:    false,
 	}
+}
+
+type UserRepository interface {
+	Create(ctx context.Context, user *User) error
+	GetByID(ctx context.Context, id uuid.UUID) (*User, error)
+	GetByEmail(ctx context.Context, email string) (*User, error)
+	List(ctx context.Context, limit, offset int) (users []User, total int, err error)
+	Update(ctx context.Context, user *User) error
+	Delete(ctx context.Context, id uuid.UUID) error
 }
