@@ -2,6 +2,7 @@ package: gen
 
 generate:
   models: true
+  embedded-spec: true
 
 output-options:
   nullable-type: true
