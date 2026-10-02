@@ -1,7 +1,7 @@
 services:
   db:
     container_name: postgres
-    image: postgres:17-alpine
+    image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
     environment:
       POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in backend/.env}
       POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in backend/.env}
@@ -18,15 +18,14 @@ services:
 
   migrate:
     container_name: migrate
-    image: migrate/migrate:v4.19.1
-    command:
-      - -path
-      - /migrations
-      - -database
-      - ${POSTGRES_URL:?Set POSTGRES_URL in backend/.env}
-      - up
-    volumes:
-      - ./backend/db/postgres/migrations:/migrations:ro
+    image: ${IMAGE_PREFIX:-traci}-backend:${RELEASE_ID:-local}
+    build:
+      context: ./backend
+      dockerfile: cmd/traci/Dockerfile
+    command: ["migrate"]
+    environment:
+      POSTGRES_URL: ${POSTGRES_URL:?Set POSTGRES_URL in backend/.env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in backend/.env}
     depends_on:
       db:
         condition: service_healthy
@@ -34,6 +33,7 @@ services:
 
   app:
     container_name: backend
+    image: ${IMAGE_PREFIX:-traci}-backend:${RELEASE_ID:-local}
     build:
       context: ./backend
       dockerfile: cmd/traci/Dockerfile
@@ -54,6 +54,25 @@ services:
     stop_grace_period: ${STOP_GRACE_PERIOD:-15s}
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+  frontend:
+    container_name: frontend
+    image: ${IMAGE_PREFIX:-traci}-frontend:${RELEASE_ID:-local}
+    build:
+      context: ./frontend
+    environment:
+      BACKEND_URL: ${BACKEND_URL:-http://app:8080}
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/healthz"]
       interval: 10s
       timeout: 3s
       retries: 3
