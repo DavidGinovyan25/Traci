@@ -17,6 +17,7 @@ require (
 	github.com/getkin/kin-openapi v0.142.0
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/stretchr/testify v1.11.1
+	golang.org/x/term v0.38.0
 )
 
 require (

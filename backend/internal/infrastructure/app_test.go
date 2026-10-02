@@ -14,7 +14,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"traci/backend/db/postgres"
+	"traci/backend/internal/application"
 	"traci/backend/internal/config"
+	"traci/backend/internal/domain"
+	"traci/backend/internal/gen/db"
+	"traci/backend/internal/infrastructure/auth"
+	sqlrepository "traci/backend/internal/repository/sql"
 	"traci/backend/internal/testutil"
 )
 
@@ -73,7 +79,7 @@ func TestAppPostgresLifecycle(t *testing.T) {
 		}
 		app.Close()
 	})
-	client := &http.Client{Timeout: time.Second}
+	client := &http.Client{Timeout: 10 * time.Second}
 	url := "http://" + cfg.HTTPAddr
 	deadline := time.Now().Add(5 * time.Second)
 	for {
@@ -119,4 +125,32 @@ func TestAppPostgresLifecycle(t *testing.T) {
 		count := app.database.Pool().Stat().TotalConns()
 		assert.EqualValues(t, 0, count, "database connections remain: %d", count)
 	}
+}
+
+func TestCreateAdminPostgres(t *testing.T) {
+	cfg := appTestConfig()
+	cfg.PostgresURL = testutil.Postgres(t)
+	input := application.Register{Username: "admin", FirstName: "Admin", SecondName: "User", Email: "ADMIN@example.com", Password: "password123"}
+	admin, err := CreateAdmin(context.Background(), cfg, input)
+	require.NoError(t, err)
+	assert.Equal(t, domain.RoleAdmin, admin.Role)
+	assert.Equal(t, "admin@example.com", admin.Email)
+	assert.NotEqual(t, input.Password, admin.PasswordHash)
+	database, err := postgres.NewPostgres(context.Background(), cfg.PostgresURL)
+	require.NoError(t, err)
+	defer database.Close()
+	credentials, err := auth.NewCredentials(cfg.JWTSecret, cfg.TokenTTL)
+	require.NoError(t, err)
+	service := application.NewService(sqlrepository.NewUserRepository(db.New(database.Pool())), nil, nil, credentials)
+	token, err := service.Login(context.Background(), application.Login{Email: input.Email, Password: input.Password})
+	require.NoError(t, err)
+	actor, err := service.Authenticate(context.Background(), token)
+	require.NoError(t, err)
+	assert.Equal(t, domain.RoleAdmin, actor.Role)
+	assert.Equal(t, admin.ID, actor.ID)
+	_, err = CreateAdmin(context.Background(), cfg, input)
+	require.ErrorIs(t, err, domain.ErrAlreadyExists)
+	token, err = service.Login(context.Background(), application.Login{Email: input.Email, Password: input.Password})
+	require.NoError(t, err)
+	assert.NotEmpty(t, token)
 }

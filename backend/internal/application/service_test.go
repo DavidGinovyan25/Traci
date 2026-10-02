@@ -416,3 +416,30 @@ type collectionLookup struct {
 func (s collectionLookup) Get(context.Context, uuid.UUID, uuid.UUID) (*domain.CollectionItem, error) {
 	return s.item, nil
 }
+
+func TestCreateAdminUsesAdminRoleAndHashesPassword(t *testing.T) {
+	var stored *domain.User
+	service := NewService(userStub{create: func(ctx context.Context, user *domain.User) error { stored = user; return nil }}, nil, nil,
+		credentialStub{hash: func(password string) (string, error) { assert.Equal(t, "password123", password); return "hashed", nil }})
+	user, err := service.CreateAdmin(context.Background(), Register{Username: "admin", FirstName: "Admin", SecondName: "User", Email: "ADMIN@example.com", Password: "password123"})
+	require.NoError(t, err)
+	require.NotNil(t, stored)
+	assert.Same(t, stored, user)
+	assert.Equal(t, domain.RoleAdmin, stored.Role)
+	assert.Equal(t, "admin@example.com", stored.Email)
+	assert.Equal(t, "hashed", stored.PasswordHash)
+	assert.False(t, stored.IsBlocked)
+}
+
+func TestCreateAdminFailures(t *testing.T) {
+	failure := errors.New("hash unavailable")
+	service := NewService(nil, nil, nil, credentialStub{hash: func(string) (string, error) { return "", failure }})
+	user, err := service.CreateAdmin(context.Background(), Register{})
+	require.ErrorIs(t, err, failure)
+	assert.Nil(t, user)
+	service = NewService(userStub{create: func(context.Context, *domain.User) error { return domain.ErrAlreadyExists }}, nil, nil,
+		credentialStub{hash: func(string) (string, error) { return "hashed", nil }})
+	user, err = service.CreateAdmin(context.Background(), Register{})
+	require.ErrorIs(t, err, domain.ErrAlreadyExists)
+	assert.Nil(t, user)
+}

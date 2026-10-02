@@ -29,11 +29,20 @@ func NewService(users domain.UserRepository, movies domain.MovieRepository, coll
 }
 
 func (s *Service) Register(ctx context.Context, input Register) (*domain.User, error) {
+	return s.createUser(ctx, input, domain.RoleUser)
+}
+
+func (s *Service) CreateAdmin(ctx context.Context, input Register) (*domain.User, error) {
+	return s.createUser(ctx, input, domain.RoleAdmin)
+}
+
+func (s *Service) createUser(ctx context.Context, input Register, role domain.Role) (*domain.User, error) {
 	hash, err := s.credentials.Hash(input.Password)
 	if err != nil {
 		return nil, err
 	}
 	user := domain.NewUser(input.Username, input.FirstName, input.SecondName, strings.ToLower(input.Email), hash)
+	user.Role = role
 	if err := s.users.Create(ctx, user); err != nil {
 		return nil, err
 	}

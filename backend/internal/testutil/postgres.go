@@ -22,7 +22,7 @@ func Postgres(t *testing.T) string {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	container, err := pgcontainer.Run(ctx, "postgres:17-alpine", pgcontainer.WithDatabase("traci_test"), pgcontainer.WithUsername("traci_test"), pgcontainer.WithPassword("test_password"), pgcontainer.BasicWaitStrategies())
+	container, err := pgcontainer.Run(ctx, "postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24", pgcontainer.WithDatabase("traci_test"), pgcontainer.WithUsername("traci_test"), pgcontainer.WithPassword("test_password"), pgcontainer.BasicWaitStrategies())
 	testcontainers.CleanupContainer(t, container)
 	require.NoError(t, err)
 	url, err := container.ConnectionString(ctx, "sslmode=disable")

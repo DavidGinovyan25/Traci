@@ -1,13 +1,31 @@
 package postgres
 
 import (
+	"embed"
 	"errors"
 	"fmt"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 )
+
+//go:embed migrations/*.sql
+var migrations embed.FS
+
+func NewEmbeddedMigrator(url string) (*Migrator, error) {
+	source, err := iofs.New(migrations, "migrations")
+	if err != nil {
+		return nil, err
+	}
+	m, err := migrate.NewWithSourceInstance("iofs", source, url)
+	if err != nil {
+		source.Close()
+		return nil, err
+	}
+	return &Migrator{m: m}, nil
+}
 
 type Migrator struct {
 	m *migrate.Migrate
