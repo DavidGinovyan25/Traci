@@ -49,4 +49,3 @@ minikube-load: images-build
 
 minikube-deploy:
 	./deploy.sh
-	minikube kubectl -- apply -f k8s/ingress.yaml
