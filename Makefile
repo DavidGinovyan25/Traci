@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := build
 
-.PHONY: generate build target test test-unit test-race run docker-up docker-down test-frontend test-e2e create-admin
+.PHONY: generate build target test test-unit test-race run docker-up docker-down test-frontend test-e2e create-admin images-build minikube-load minikube-deploy
 
 generate:
 	cd backend && go generate ./internal/api
@@ -37,4 +37,16 @@ test-e2e:
 	cd frontend && npm run test:e2e
 
 create-admin:
-	docker compose --env-file backend/.env exec app /app/traci create-admin
+	minikube kubectl -- exec -it -n traci deployment/traci-backend -- /app/traci create-admin
+
+images-build:
+	docker build -f backend/cmd/traci/Dockerfile -t traci-backend:v1 backend
+	docker build -t traci-frontend:v1 frontend
+
+minikube-load: images-build
+	minikube image load traci-backend:v1
+	minikube image load traci-frontend:v1
+
+minikube-deploy:
+	./deploy.sh
+	minikube kubectl -- apply -f k8s/ingress.yaml
