@@ -1,0 +1,23 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: traci
+  namespace: traci
+spec:
+  template:
+    spec:
+      containers:
+      - name: traci-migrate
+        image: traci-backend:v1
+        imagePullPolicy: Never
+        args: ["migrate"]
+        envFrom:
+        - configMapRef:
+            name: my-configmap
+        - secretRef:
+            name: traci-secret
+        env:
+        - name: POSTGRES_URL
+          value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@traci-postgres:5432/$(POSTGRES_DB)?sslmode=disable"
+      restartPolicy: Never
+  backoffLimit: 0

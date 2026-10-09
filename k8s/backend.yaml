@@ -1,0 +1,36 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traci-backend
+  namespace: traci
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: traci-backend
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: traci-backend
+    spec:
+      containers:
+      - image: traci-backend:v1
+        imagePullPolicy: Never
+        name: traci-backend
+        envFrom:
+        - configMapRef:
+            name: my-configmap
+        - secretRef:
+            name: traci-secret
+        env:
+        - name: POSTGRES_URL
+          value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@traci-postgres:5432/$(POSTGRES_DB)?sslmode=disable"
+        ports:
+        - containerPort: 8080
+...

@@ -1,0 +1,41 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: traci-service
+  namespace: traci
+spec:
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+  selector:
+    app: traci-backend
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: traci-postgres
+  namespace: traci
+spec:
+  clusterIP: None
+  ports:
+  - port: 5432
+    targetPort: 5432
+  selector:
+    app: traci-postgres
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: traci-frontend
+  namespace: traci
+spec:
+  ports:
+  - port: 80
+    targetPort: 80
+  selector:
+    app: traci-frontend
+  type: ClusterIP
+...
