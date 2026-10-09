@@ -1,6 +1,6 @@
 services:
   db:
-    container_name: postgres
+    container_name: traci-postgres
     image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
     environment:
       POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in backend/.env}
@@ -17,7 +17,7 @@ services:
     restart: unless-stopped
 
   migrate:
-    container_name: migrate
+    container_name: traci-migrate
     image: ${IMAGE_PREFIX:-traci}-backend:${RELEASE_ID:-local}
     build:
       context: ./backend
@@ -32,7 +32,7 @@ services:
     restart: "no"
 
   app:
-    container_name: backend
+    container_name: traci-backend
     image: ${IMAGE_PREFIX:-traci}-backend:${RELEASE_ID:-local}
     build:
       context: ./backend
@@ -60,7 +60,7 @@ services:
     restart: unless-stopped
 
   frontend:
-    container_name: frontend
+    container_name: traci-frontend
     image: ${IMAGE_PREFIX:-traci}-frontend:${RELEASE_ID:-local}
     build:
       context: ./frontend
