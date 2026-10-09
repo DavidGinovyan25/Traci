@@ -4,7 +4,7 @@
 
 generate:
 	cd backend && go generate ./internal/api
-	cd backend && sqlc generate
+	cd backend && go tool sqlc generate
 
 build:
 	cd backend && go build -o bin/traci ./cmd/traci
