@@ -1,0 +1,82 @@
+services:
+  db:
+    container_name: traci-postgres
+    image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in backend/.env}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in backend/.env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in backend/.env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  migrate:
+    container_name: traci-migrate
+    image: ${IMAGE_PREFIX:-traci}-backend:${RELEASE_ID:-local}
+    build:
+      context: ./backend
+      dockerfile: cmd/traci/Dockerfile
+    command: ["migrate"]
+    environment:
+      POSTGRES_URL: ${POSTGRES_URL:?Set POSTGRES_URL in backend/.env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in backend/.env}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    container_name: traci-backend
+    image: ${IMAGE_PREFIX:-traci}-backend:${RELEASE_ID:-local}
+    build:
+      context: ./backend
+      dockerfile: cmd/traci/Dockerfile
+    environment:
+      POSTGRES_URL: ${POSTGRES_URL:?Set POSTGRES_URL in backend/.env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in backend/.env or your environment}
+      HTTP_ADDR: :8080
+      TOKEN_TTL: ${TOKEN_TTL:-1h}
+      CONNECT_TIMEOUT: ${CONNECT_TIMEOUT:-5s}
+      SHUTDOWN_TIMEOUT: ${SHUTDOWN_TIMEOUT:-10s}
+    ports:
+      - "${HTTP_PORT:-8080}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    stop_grace_period: ${STOP_GRACE_PERIOD:-15s}
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+  frontend:
+    container_name: traci-frontend
+    image: ${IMAGE_PREFIX:-traci}-frontend:${RELEASE_ID:-local}
+    build:
+      context: ./frontend
+    environment:
+      BACKEND_URL: ${BACKEND_URL:-http://app:8080}
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

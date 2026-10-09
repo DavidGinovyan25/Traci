@@ -1,0 +1,10 @@
+package: gen
+
+generate:
+  client: true
+
+output-options:
+  response-type-suffix: HTTPResponse
+  nullable-type: true
+
+output: ../gen/client.gen.go
