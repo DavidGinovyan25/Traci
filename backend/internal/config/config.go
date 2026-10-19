@@ -16,29 +16,58 @@ type Config struct {
 	PostgresURL     string        `mapstructure:"POSTGRES_URL"`
 	HTTPAddr        string        `mapstructure:"HTTP_ADDR"`
 	ShutdownTimeout time.Duration `mapstructure:"SHUTDOWN_TIMEOUT"`
+
+	ServiceName    string `mapstructure:"SERVICE_NAME"`
+	PodName        string `mapstructure:"POD_NAME"`
+	NamespaceName  string `mapstructure:"POD_NAMESPACE"`
+	DeploymentName string `mapstructure:"DEPLOYMENT_NAME"`
+	PodUID         string `mapstructure:"POD_UID"`
+	NodeName       string `mapstructure:"NODE_NAME"`
 }
 
-func NewConfig() *Config { return &Config{} }
+func NewConfig() *Config { 
+	return &Config{} 
+}
 
 func (c *Config) Load() error {
 	v := viper.New()
 	v.SetConfigFile(".env")
+
+	for _, key := range []string{
+		"POSTGRES_URL",
+		"HTTP_ADDR",
+		"SHUTDOWN_TIMEOUT",
+		"JWT_SECRET",
+		"TOKEN_TTL",
+		"CONNECT_TIMEOUT",
+		"SERVICE_NAME",
+		"POD_NAME",
+		"POD_NAMESPACE",
+		"DEPLOYMENT_NAME",
+		"POD_UID",
+		"NODE_NAME",
+	} {
+		v.SetDefault(key, "")
+		if err := v.BindEnv(key); err != nil {
+			return fmt.Errorf("bind configuration %s: %w", key, err)
+		}
+	}
+
 	v.SetDefault("HTTP_ADDR", ":8080")
 	v.SetDefault("TOKEN_TTL", "1h")
 	v.SetDefault("CONNECT_TIMEOUT", "5s")
 	v.SetDefault("SHUTDOWN_TIMEOUT", "10s")
-	for _, key := range []string{"POSTGRES_URL", "HTTP_ADDR", "SHUTDOWN_TIMEOUT", "JWT_SECRET", "TOKEN_TTL", "CONNECT_TIMEOUT"} {
-		if err := v.BindEnv(key); err != nil {
-			return fmt.Errorf("bind configuration: %w", err)
-		}
-	}
+	v.SetDefault("SERVICE_NAME", "traci-backend")
+
 	if err := v.ReadInConfig(); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("не удалось прочитать параметры: %w", err)
 	}
+
 	var loaded Config
 	if err := v.Unmarshal(&loaded); err != nil {
 		return fmt.Errorf("не удалось распарсить параметры: %w", err)
 	}
+
 	if loaded.PostgresURL == "" {
 		return fmt.Errorf("POSTGRES_URL is required")
 	}
@@ -57,6 +86,10 @@ func (c *Config) Load() error {
 	if loaded.ConnectTimeout <= 0 {
 		return fmt.Errorf("CONNECT_TIMEOUT must be positive")
 	}
+	if loaded.ServiceName == "" {
+		return fmt.Errorf("SERVICE_NAME is required")
+	}
+
 	*c = loaded
 	return nil
 }

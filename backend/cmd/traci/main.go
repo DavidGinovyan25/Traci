@@ -14,14 +14,26 @@ import (
 )
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	if err := run(logger); err != nil {
+	cfg := config.NewConfig()
+	if err := cfg.Load(); err != nil {
+		os.Exit(1)
+	}	
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil)).With(
+		"service.name", cfg.ServiceName,
+		"service.version", "v1",
+		"k8s.deployment.name", cfg.DeploymentName,
+		"k8s.pod.name", cfg.PodName,
+		"k8s.pod.uid", cfg.PodUID,
+		"k8s.namespace.name", cfg.NamespaceName,
+		"k8s.node.name", cfg.NodeName,
+	)
+	if err := run(logger, cfg); err != nil {
 		logger.Error("application stopped", "error", err)
 		os.Exit(1)
 	}
 }
 
-func run(logger *slog.Logger) error {
+func run(logger *slog.Logger, cfg *config.Config) error {
 	command := "serve"
 	if len(os.Args) > 1 {
 		command = os.Args[1]
@@ -29,10 +41,7 @@ func run(logger *slog.Logger) error {
 	if len(os.Args) > 2 || (command != "serve" && command != "create-admin" && command != "migrate") {
 		return fmt.Errorf("usage: traci [serve|create-admin|migrate]")
 	}
-	cfg := config.NewConfig()
-	if err := cfg.Load(); err != nil {
-		return err
-	}
+
 	if command == "migrate" {
 		m, err := postgres.NewEmbeddedMigrator(cfg.PostgresURL)
 		if err != nil {

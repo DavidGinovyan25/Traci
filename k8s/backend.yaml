@@ -31,6 +31,33 @@ spec:
         env:
         - name: POSTGRES_URL
           value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@traci-postgres:5432/$(POSTGRES_DB)?sslmode=disable"
+
+        - name: SERVICE_NAME
+          value: "traci-backend"
+      
+        - name: DEPLOYMENT_NAME
+          value: "traci-backend"
+
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+      
+        - name: POD_UID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.uid
+      
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+
         ports:
         - containerPort: 8080
 ...
