@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"traci/backend/db/postgres"
 	"traci/backend/internal/config"
 	"traci/backend/internal/infrastructure"
+	httptransport "traci/backend/internal/transport/http"
 )
 
 func main() {
@@ -38,8 +40,18 @@ func main() {
 	    "k8s.node.name", cfg.NodeName,
 	)
 	if err := run(logger, cfg); err != nil {
-		logger.Error("application stopped", "error", err)
-		os.Exit(1)
+	    var serverErr *httptransport.ServerError
+	    if errors.As(err, &serverErr) {
+	        logger.Error(
+	            "application stopped",
+	            "error", err,
+	            "server.address", serverErr.Host,
+	            "server.port", serverErr.Port,
+	        )
+	    } else {
+	        logger.Error("application stopped", "error", err)
+	    }
+	    os.Exit(1)
 	}
 }
 
