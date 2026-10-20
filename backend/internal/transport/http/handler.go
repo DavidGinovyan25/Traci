@@ -50,18 +50,18 @@ func (h *Handler) actor(w http.ResponseWriter, r *http.Request, admin bool) *dom
 	}
 	actor, err := h.service.Authenticate(r.Context(), fields[1])
 	if err != nil {
-    h.fail(w, r, err)
-    if errors.Is(err, application.ErrUnauthorized) ||
-        errors.Is(err, application.ErrBlocked) {
-	        h.logger.WarnContext(
-	            r.Context(),
-	            "Authorization failed",
-	            "http.request.method", r.Method,
-	            "url.path", r.URL.Path,
-	            "error", err,
-	        )
-        }
-    	return nil
+		h.fail(w, r, err)
+		if errors.Is(err, application.ErrUnauthorized) ||
+			errors.Is(err, application.ErrBlocked) {
+			h.logger.WarnContext(
+				r.Context(),
+				"Authorization failed",
+				"http.request.method", r.Method,
+				"url.path", r.URL.Path,
+				"error", err,
+			)
+		}
+		return nil
 	}
 	if admin && actor.Role != domain.RoleAdmin {
 		h.fail(w, r, application.ErrForbidden)
@@ -95,11 +95,11 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 		writeError(w, r, http.StatusConflict, "ALREADY_EXISTS", "Resource already exists", h.logger)
 	default:
 		h.logger.ErrorContext(
-		    r.Context(),
-		    "request failed",
-		    "http.request.method", r.Method,
-		    "url.path", r.URL.Path,
-		    "error", err,
+			r.Context(),
+			"request failed",
+			"http.request.method", r.Method,
+			"url.path", r.URL.Path,
+			"error", err,
 		)
 		writeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error", h.logger)
 	}

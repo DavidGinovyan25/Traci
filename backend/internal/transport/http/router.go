@@ -1,4 +1,3 @@
-
 package httptransport
 
 import (
@@ -116,7 +115,7 @@ func NewRouter(handler gen.ServerInterface, logger *slog.Logger) (http.Handler, 
 					PathParams: params,
 					Route:      route,
 					Options: &openapi3filter.Options{
-						AuthenticationFunc: openapi3filter.NoopAuthenticationFunc,
+						AuthenticationFunc:  openapi3filter.NoopAuthenticationFunc,
 						SkipSettingDefaults: true,
 					},
 				}

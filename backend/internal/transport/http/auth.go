@@ -24,9 +24,9 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	token, err := h.service.Login(
-		r.Context(), 
+		r.Context(),
 		application.Login{
-			Email: string(body.Email), 
+			Email:    string(body.Email),
 			Password: body.Password,
 		},
 	)
@@ -48,20 +48,20 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !validEmail(
-		string(body.Email)) || 
-		strings.TrimSpace(body.Username) == "" || 
-		strings.TrimSpace(body.FirstName) == "" || 
+		string(body.Email)) ||
+		strings.TrimSpace(body.Username) == "" ||
+		strings.TrimSpace(body.FirstName) == "" ||
 		strings.TrimSpace(body.SecondName) == "" {
-			
+
 		writeError(w, r, http.StatusBadRequest, "BAD_REQUEST", "Invalid registration fields", h.logger)
 		return
 	}
 	user, err := h.service.Register(r.Context(), application.Register{
-		Username: body.Username, 
-		FirstName: body.FirstName, 
+		Username:   body.Username,
+		FirstName:  body.FirstName,
 		SecondName: body.SecondName,
-		Email: string(body.Email), 
-		Password: body.Password,
+		Email:      string(body.Email),
+		Password:   body.Password,
 	})
 	if err != nil {
 		h.fail(w, r, err)

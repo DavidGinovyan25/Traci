@@ -28,14 +28,14 @@ func (r *MovieRepository) Create(ctx context.Context, movie *domain.Movie) error
 		return fmt.Errorf("create movie: %w", err)
 	}
 	err = r.queries.CreateMovie(ctx, db.CreateMovieParams{
-		ID: databaseUUID(movie.ID), 
-		Name: movie.Name, 
+		ID:          databaseUUID(movie.ID),
+		Name:        movie.Name,
 		DurationMin: duration,
-		Genre: db.MovieGenre(movie.Genre), 
-		ReleaseYear: year, 
+		Genre:       db.MovieGenre(movie.Genre),
+		ReleaseYear: year,
 		Description: databaseText(movie.Description),
-		CreatedAt: databaseTime(movie.CreatedAt), 
-		UpdatedAt: databaseTime(movie.UpdatedAt),
+		CreatedAt:   databaseTime(movie.CreatedAt),
+		UpdatedAt:   databaseTime(movie.UpdatedAt),
 	})
 	return repositoryError("create movie", err)
 }
@@ -57,22 +57,22 @@ func (r *MovieRepository) List(ctx context.Context, filter domain.MovieFilter) (
 	genre := db.NullMovieGenre{}
 	if filter.Genre != nil {
 		genre = db.NullMovieGenre{
-			MovieGenre: db.MovieGenre(*filter.Genre), 
-			Valid: true,
+			MovieGenre: db.MovieGenre(*filter.Genre),
+			Valid:      true,
 		}
 	}
 	rows, err := r.queries.ListMovies(ctx, db.ListMoviesParams{
-		Genre: genre, 
-		Search: filter.Search, 
-		PageLimit: l, 
+		Genre:      genre,
+		Search:     filter.Search,
+		PageLimit:  l,
 		PageOffset: o,
 	})
 	if err != nil {
 		return nil, 0, repositoryError("list movies", err)
 	}
-	total, err := r.queries.CountMovies(ctx, 
+	total, err := r.queries.CountMovies(ctx,
 		db.CountMoviesParams{
-			Genre: genre, 
+			Genre:  genre,
 			Search: filter.Search,
 		},
 	)
@@ -96,11 +96,11 @@ func (r *MovieRepository) Update(ctx context.Context, movie *domain.Movie) error
 		return fmt.Errorf("update movie: %w", err)
 	}
 	rows, err := r.queries.UpdateMovie(ctx, db.UpdateMovieParams{
-		ID: databaseUUID(movie.ID), 
-		Name: movie.Name, 
+		ID:          databaseUUID(movie.ID),
+		Name:        movie.Name,
 		DurationMin: duration,
-		Genre: db.MovieGenre(movie.Genre), 
-		ReleaseYear: year, 
+		Genre:       db.MovieGenre(movie.Genre),
+		ReleaseYear: year,
 		Description: databaseText(movie.Description),
 	})
 	return affectedRows("update movie", rows, err)
@@ -113,13 +113,13 @@ func (r *MovieRepository) Delete(ctx context.Context, id uuid.UUID) error {
 
 func movieFromRow(row db.Movie) domain.Movie {
 	return domain.Movie{
-		ID: uuid.UUID(row.ID.Bytes), 
-		Name: row.Name, 
+		ID:          uuid.UUID(row.ID.Bytes),
+		Name:        row.Name,
 		DurationMin: int(row.DurationMin),
-		Genre: domain.MovieGenre(row.Genre), 
+		Genre:       domain.MovieGenre(row.Genre),
 		ReleaseYear: int(row.ReleaseYear),
-		Description: textPointer(row.Description), 
-		CreatedAt: row.CreatedAt.Time, 
-		UpdatedAt: row.UpdatedAt.Time,
+		Description: textPointer(row.Description),
+		CreatedAt:   row.CreatedAt.Time,
+		UpdatedAt:   row.UpdatedAt.Time,
 	}
 }
