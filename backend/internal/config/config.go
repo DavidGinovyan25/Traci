@@ -25,8 +25,8 @@ type Config struct {
 	NodeName       string `mapstructure:"NODE_NAME"`
 }
 
-func NewConfig() *Config { 
-	return &Config{} 
+func NewConfig() *Config {
+	return &Config{}
 }
 
 func (c *Config) Load() error {

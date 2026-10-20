@@ -19,39 +19,39 @@ func main() {
 	cfg := config.NewConfig()
 	if err := cfg.Load(); err != nil {
 		os.Exit(1)
-	}	
+	}
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-    ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
-        if a.Key == slog.TimeKey && len(groups) == 0 {
-            return slog.String(
-                "timestamp",
-                a.Value.Time().UTC().Format("2006-01-02T15:04:05.000Z"),
-            )
-        }
-        return a
-    },
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if a.Key == slog.TimeKey && len(groups) == 0 {
+				return slog.String(
+					"timestamp",
+					a.Value.Time().UTC().Format("2006-01-02T15:04:05.000Z"),
+				)
+			}
+			return a
+		},
 	})).With(
-	    "service.name", cfg.ServiceName,
-	    "service.version", "v1",
-	    "k8s.deployment.name", cfg.DeploymentName,
-	    "k8s.pod.name", cfg.PodName,
-	    "k8s.pod.uid", cfg.PodUID,
-	    "k8s.namespace.name", cfg.NamespaceName,
-	    "k8s.node.name", cfg.NodeName,
+		"service.name", cfg.ServiceName,
+		"service.version", "v1",
+		"k8s.deployment.name", cfg.DeploymentName,
+		"k8s.pod.name", cfg.PodName,
+		"k8s.pod.uid", cfg.PodUID,
+		"k8s.namespace.name", cfg.NamespaceName,
+		"k8s.node.name", cfg.NodeName,
 	)
 	if err := run(logger, cfg); err != nil {
-	    var serverErr *httptransport.ServerError
-	    if errors.As(err, &serverErr) {
-	        logger.Error(
-	            "application stopped",
-	            "error", err,
-	            "server.address", serverErr.Host,
-	            "server.port", serverErr.Port,
-	        )
-	    } else {
-	        logger.Error("application stopped", "error", err)
-	    }
-	    os.Exit(1)
+		var serverErr *httptransport.ServerError
+		if errors.As(err, &serverErr) {
+			logger.Error(
+				"application stopped",
+				"error", err,
+				"server.address", serverErr.Host,
+				"server.port", serverErr.Port,
+			)
+		} else {
+			logger.Error("application stopped", "error", err)
+		}
+		os.Exit(1)
 	}
 }
 
