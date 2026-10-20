@@ -33,7 +33,7 @@ func (h *Handler) GetCatalog(w http.ResponseWriter, r *http.Request, params gen.
 	for i, movie := range page.Items {
 		items[i] = movieResponse(movie)
 	}
-	writeJSON(w, http.StatusOK, gen.MoviePage{Items: items, Limit: page.Limit, Offset: page.Offset, Total: page.Total})
+	writeJSON(w, r, http.StatusOK, gen.MoviePage{Items: items, Limit: page.Limit, Offset: page.Offset, Total: page.Total}, h.logger)
 }
 
 func (h *Handler) CreateMovie(w http.ResponseWriter, r *http.Request) {
@@ -41,12 +41,12 @@ func (h *Handler) CreateMovie(w http.ResponseWriter, r *http.Request) {
 	if actor == nil {
 		return
 	}
-	body, ok := decodeBody[gen.CreateMovieRequest](w, r)
+	body, ok := decodeBody[gen.CreateMovieRequest](w, r, h.logger)
 	if !ok {
 		return
 	}
 	if strings.TrimSpace(body.Name) == "" || body.DurationMin > math.MaxInt32 || body.ReleaseYear > math.MaxInt32 {
-		writeError(w, r, http.StatusBadRequest, "BAD_REQUEST", "Invalid movie fields")
+		writeError(w, r, http.StatusBadRequest, "BAD_REQUEST", "Invalid movie fields", h.logger)
 		return
 	}
 	movie := domain.NewMovie(body.Name, body.DurationMin, domain.MovieGenre(body.Genre), body.ReleaseYear, body.Description)
@@ -55,7 +55,7 @@ func (h *Handler) CreateMovie(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Location", "/catalog/"+movie.ID.String())
-	writeJSON(w, http.StatusCreated, movieResponse(*movie))
+	writeJSON(w, r, http.StatusCreated, movieResponse(*movie), h.logger)
 }
 
 func (h *Handler) GetMovieById(w http.ResponseWriter, r *http.Request, movieID uuid.UUID) {
@@ -67,7 +67,7 @@ func (h *Handler) GetMovieById(w http.ResponseWriter, r *http.Request, movieID u
 		h.fail(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, movieResponse(*movie))
+	writeJSON(w, r, http.StatusOK, movieResponse(*movie), h.logger)
 }
 
 func (h *Handler) UpdateMovie(w http.ResponseWriter, r *http.Request, movieID uuid.UUID) {
@@ -75,12 +75,12 @@ func (h *Handler) UpdateMovie(w http.ResponseWriter, r *http.Request, movieID uu
 	if actor == nil {
 		return
 	}
-	body, ok := decodeBody[gen.UpdateMovieRequest](w, r)
+	body, ok := decodeBody[gen.UpdateMovieRequest](w, r, h.logger)
 	if !ok {
 		return
 	}
 	if (body.Name != nil && strings.TrimSpace(*body.Name) == "") || (body.DurationMin != nil && *body.DurationMin > math.MaxInt32) || (body.ReleaseYear != nil && *body.ReleaseYear > math.MaxInt32) {
-		writeError(w, r, http.StatusBadRequest, "BAD_REQUEST", "Invalid movie fields")
+		writeError(w, r, http.StatusBadRequest, "BAD_REQUEST", "Invalid movie fields", h.logger)
 		return
 	}
 	movie, err := h.service.GetMovie(r.Context(), movieID)
@@ -108,7 +108,7 @@ func (h *Handler) UpdateMovie(w http.ResponseWriter, r *http.Request, movieID uu
 		h.fail(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, movieResponse(*movie))
+	writeJSON(w, r, http.StatusOK, movieResponse(*movie), h.logger)
 }
 
 func (h *Handler) DeleteMovie(w http.ResponseWriter, r *http.Request, movieID uuid.UUID) {

@@ -19,17 +19,17 @@ type Server struct {
 }
 
 type ServerError struct {
-    Host string
-    Port int
-    Err  error
+	Host string
+	Port int
+	Err  error
 }
 
 func (e *ServerError) Error() string {
-    return e.Err.Error()
+	return e.Err.Error()
 }
 
 func (e *ServerError) Unwrap() error {
-    return e.Err
+	return e.Err
 }
 
 func NewServer(cfg config.Config, handler http.Handler, logger *slog.Logger) *Server {
@@ -49,23 +49,23 @@ func (s *Server) Run(ctx context.Context) error {
 	server, logger := s.server, s.logger
 	host, port, err := net.SplitHostPort(server.Addr)
 	if err != nil {
-    	return fmt.Errorf("invalid server address: %w", err)
+		return fmt.Errorf("invalid server address: %w", err)
 	}
 	portNumber, err := strconv.Atoi(port)
 	if err != nil {
-    	return fmt.Errorf("invalid server port: %w", err)
-	}	
+		return fmt.Errorf("invalid server port: %w", err)
+	}
 	serverError := func(operation string, err error) error {
-    return fmt.Errorf("%s: %w", operation, &ServerError{
-	        Host: host,
-	        Port: portNumber,
-	        Err:  err,
-	    })
-	}	
+		return fmt.Errorf("%s: %w", operation, &ServerError{
+			Host: host,
+			Port: portNumber,
+			Err:  err,
+		})
+	}
 	done := make(chan error, 1)
 	go func() {
 		logger.Info(
-			"server starting", 
+			"server starting",
 			"server.address", host,
 			"server.port", portNumber,
 		)
@@ -75,7 +75,7 @@ func (s *Server) Run(ctx context.Context) error {
 	case err := <-done:
 		if errors.Is(err, http.ErrServerClosed) {
 			logger.Info(
-				"server stopped", 
+				"server stopped",
 				"server.address", host,
 				"server.port", portNumber,
 			)
@@ -92,16 +92,17 @@ func (s *Server) Run(ctx context.Context) error {
 		defer cancel()
 		if err := server.Shutdown(shutdownCtx); err != nil {
 			_ = server.Close()
+			<-done
 			return serverError("server shutdown failed", err)
 		}
 		err := <-done
 		if errors.Is(err, http.ErrServerClosed) {
-		    logger.Info(
-		        "server stopped",
-		        "server.address", host,
-		        "server.port", portNumber,
-		    )
-		    return nil
+			logger.Info(
+				"server stopped",
+				"server.address", host,
+				"server.port", portNumber,
+			)
+			return nil
 		}
 		return serverError("server failed", err)
 	}

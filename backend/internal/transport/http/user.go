@@ -23,7 +23,7 @@ func (h *Handler) GetUsers(w http.ResponseWriter, r *http.Request, params gen.Ge
 	for i, user := range page.Items {
 		items[i] = userResponse(user)
 	}
-	writeJSON(w, http.StatusOK, gen.UserPage{Items: items, Limit: page.Limit, Offset: page.Offset, Total: page.Total})
+	writeJSON(w, r, http.StatusOK, gen.UserPage{Items: items, Limit: page.Limit, Offset: page.Offset, Total: page.Total}, h.logger)
 }
 
 func (h *Handler) GetUserById(w http.ResponseWriter, r *http.Request, userID uuid.UUID) {
@@ -36,7 +36,7 @@ func (h *Handler) GetUserById(w http.ResponseWriter, r *http.Request, userID uui
 		h.fail(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, userResponse(*user))
+	writeJSON(w, r, http.StatusOK, userResponse(*user), h.logger)
 }
 
 func (h *Handler) UpdateUserBlockStatus(w http.ResponseWriter, r *http.Request, userID uuid.UUID) {
@@ -44,7 +44,7 @@ func (h *Handler) UpdateUserBlockStatus(w http.ResponseWriter, r *http.Request, 
 	if actor == nil {
 		return
 	}
-	body, ok := decodeBody[gen.UpdateUserRequest](w, r)
+	body, ok := decodeBody[gen.UpdateUserRequest](w, r, h.logger)
 	if !ok {
 		return
 	}
@@ -53,7 +53,7 @@ func (h *Handler) UpdateUserBlockStatus(w http.ResponseWriter, r *http.Request, 
 		h.fail(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, userResponse(*user))
+	writeJSON(w, r, http.StatusOK, userResponse(*user), h.logger)
 }
 
 func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request, userID uuid.UUID) {

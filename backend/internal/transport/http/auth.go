@@ -15,39 +15,57 @@ func validEmail(value string) bool {
 }
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
-	body, ok := decodeBody[gen.LoginRequest](w, r)
+	body, ok := decodeBody[gen.LoginRequest](w, r, h.logger)
 	if !ok {
 		return
 	}
 	if !validEmail(string(body.Email)) {
-		writeError(w, r, http.StatusBadRequest, "BAD_REQUEST", "Invalid email")
+		writeError(w, r, http.StatusBadRequest, "BAD_REQUEST", "Invalid email", h.logger)
 		return
 	}
-	token, err := h.service.Login(r.Context(), application.Login{Email: string(body.Email), Password: body.Password})
+	token, err := h.service.Login(
+		r.Context(), 
+		application.Login{
+			Email: string(body.Email), 
+			Password: body.Password,
+		},
+	)
 	if err != nil {
 		h.fail(w, r, err)
 		return
 	}
 	w.Header().Set("Cache-Control", "no-store")
-	writeJSON(w, http.StatusOK, gen.LoginResponse{AccessToken: token, TokenType: "Bearer", ExpiresIn: int(h.tokenLifetime.Seconds())})
+	writeJSON(w, r, http.StatusOK, gen.LoginResponse{
+		AccessToken: token,
+		TokenType:   "Bearer",
+		ExpiresIn:   int(h.tokenLifetime.Seconds())},
+		h.logger)
 }
 
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
-	body, ok := decodeBody[gen.RegisterRequest](w, r)
+	body, ok := decodeBody[gen.RegisterRequest](w, r, h.logger)
 	if !ok {
 		return
 	}
-	if !validEmail(string(body.Email)) || strings.TrimSpace(body.Username) == "" || strings.TrimSpace(body.FirstName) == "" || strings.TrimSpace(body.SecondName) == "" {
-		writeError(w, r, http.StatusBadRequest, "BAD_REQUEST", "Invalid registration fields")
+	if !validEmail(
+		string(body.Email)) || 
+		strings.TrimSpace(body.Username) == "" || 
+		strings.TrimSpace(body.FirstName) == "" || 
+		strings.TrimSpace(body.SecondName) == "" {
+			
+		writeError(w, r, http.StatusBadRequest, "BAD_REQUEST", "Invalid registration fields", h.logger)
 		return
 	}
 	user, err := h.service.Register(r.Context(), application.Register{
-		Username: body.Username, FirstName: body.FirstName, SecondName: body.SecondName,
-		Email: string(body.Email), Password: body.Password,
+		Username: body.Username, 
+		FirstName: body.FirstName, 
+		SecondName: body.SecondName,
+		Email: string(body.Email), 
+		Password: body.Password,
 	})
 	if err != nil {
 		h.fail(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, userResponse(*user))
+	writeJSON(w, r, http.StatusCreated, userResponse(*user), h.logger)
 }

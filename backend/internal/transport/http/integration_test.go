@@ -3,8 +3,6 @@ package httptransport
 import (
 	"context"
 	"encoding/json"
-	"io"
-	"log/slog"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -31,7 +29,7 @@ func TestHTTPPostgres(t *testing.T) {
 	credentials, err := auth.NewCredentials(strings.Repeat("a", 32), time.Hour)
 	require.NoError(t, err)
 	service := application.NewService(sqlrepository.NewUserRepository(queries), sqlrepository.NewMovieRepository(queries), sqlrepository.NewCollectionRepository(queries), credentials)
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	logger, logs := newTestLogger()
 	router, err := NewRouter(NewHandler(service, logger, time.Hour), logger)
 	require.NoError(t, err)
 	request := func(method, path, token, body string, want int) []byte {
@@ -47,6 +45,13 @@ func TestHTTPPostgres(t *testing.T) {
 		router.ServeHTTP(response, req)
 		require.Equal(t, want, response.Code, "%s %s: got %d, want %d: %s", method, path, response.Code, want, response.Body.String())
 		require.NotContains(t, response.Body.String(), "password_hash", "password hash leaked")
+		entries := logs.entries(t)
+		require.NotEmpty(t, entries)
+		entry := entries[len(entries)-1]
+		require.Equal(t, "HTTP request completed", entry["msg"])
+		require.EqualValues(t, want, entry["http.response.status_code"])
+		require.Equal(t, method, entry["http.request.method"])
+		require.Equal(t, req.URL.Path, entry["url.path"])
 		return response.Body.Bytes()
 	}
 	decode := func(data []byte, target any) {
@@ -132,4 +137,8 @@ func TestHTTPPostgres(t *testing.T) {
 	request("GET", moviePath, userToken, "", 404)
 	request("DELETE", userPath, adminToken, "", 204)
 	request("GET", "/catalog", userToken, "", 401)
+	require.NotContains(t, logs.text(), "password123")
+	require.NotContains(t, logs.text(), userToken)
+	require.NotContains(t, logs.text(), adminToken)
+	require.NotContains(t, logs.text(), "password_hash")
 }

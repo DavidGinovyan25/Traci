@@ -29,7 +29,7 @@ func (h *Handler) GetCollection(w http.ResponseWriter, r *http.Request, params g
 	for i, entry := range page.Items {
 		items[i] = collectionResponse(entry)
 	}
-	writeJSON(w, http.StatusOK, gen.CollectionPage{Items: items, Limit: page.Limit, Offset: page.Offset, Total: page.Total})
+	writeJSON(w, r, http.StatusOK, gen.CollectionPage{Items: items, Limit: page.Limit, Offset: page.Offset, Total: page.Total}, h.logger)
 }
 
 func (h *Handler) AddMovieToCollection(w http.ResponseWriter, r *http.Request) {
@@ -37,7 +37,7 @@ func (h *Handler) AddMovieToCollection(w http.ResponseWriter, r *http.Request) {
 	if actor == nil {
 		return
 	}
-	body, ok := decodeBody[gen.AddMovieToCollectionRequest](w, r)
+	body, ok := decodeBody[gen.AddMovieToCollectionRequest](w, r, h.logger)
 	if !ok {
 		return
 	}
@@ -51,7 +51,7 @@ func (h *Handler) AddMovieToCollection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Location", "/collection/"+body.MovieId.String())
-	writeJSON(w, http.StatusCreated, collectionResponse(entry))
+	writeJSON(w, r, http.StatusCreated, collectionResponse(entry), h.logger)
 }
 
 func (h *Handler) GetMovieFromCollection(w http.ResponseWriter, r *http.Request, movieID uuid.UUID) {
@@ -64,7 +64,7 @@ func (h *Handler) GetMovieFromCollection(w http.ResponseWriter, r *http.Request,
 		h.fail(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, collectionResponse(entry))
+	writeJSON(w, r, http.StatusOK, collectionResponse(entry), h.logger)
 }
 
 func (h *Handler) UpdateCollectionItem(w http.ResponseWriter, r *http.Request, movieID uuid.UUID) {
@@ -72,7 +72,7 @@ func (h *Handler) UpdateCollectionItem(w http.ResponseWriter, r *http.Request, m
 	if actor == nil {
 		return
 	}
-	body, ok := decodeBody[gen.UpdateCollectionItemRequest](w, r)
+	body, ok := decodeBody[gen.UpdateCollectionItemRequest](w, r, h.logger)
 	if !ok {
 		return
 	}
@@ -95,7 +95,7 @@ func (h *Handler) UpdateCollectionItem(w http.ResponseWriter, r *http.Request, m
 		h.fail(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, collectionResponse(entry))
+	writeJSON(w, r, http.StatusOK, collectionResponse(entry), h.logger)
 }
 
 func (h *Handler) DeleteMovieFromCollection(w http.ResponseWriter, r *http.Request, movieID uuid.UUID) {

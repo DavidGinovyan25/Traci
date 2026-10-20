@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strconv"
 	"testing"
 	"time"
 
@@ -17,32 +18,57 @@ import (
 
 func runTestServer(t *testing.T, handler http.Handler, timeout time.Duration) (context.CancelFunc, <-chan error, *Server, string) {
 	t.Helper()
+
 	ctx, cancel := context.WithCancel(context.Background())
-	server := NewServer(config.Config{HTTPAddr: "127.0.0.1:0", ShutdownTimeout: timeout}, handler, slog.New(slog.NewTextHandler(io.Discard, nil)))
+
+	server := NewServer(
+		config.Config{
+			HTTPAddr:        "127.0.0.1:0",
+			ShutdownTimeout: timeout,
+		},
+		handler,
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+	)
+
 	ready := make(chan string, 1)
+
 	server.server.BaseContext = func(listener net.Listener) context.Context {
 		ready <- listener.Addr().String()
 		return context.Background()
 	}
+
 	done := make(chan error, 1)
-	go func() { done <- server.Run(ctx) }()
-	t.Cleanup(func() { cancel(); server.server.Close() })
+
+	go func() {
+		done <- server.Run(ctx)
+	}()
+
+	t.Cleanup(func() {
+		cancel()
+		server.server.Close()
+	})
+
 	select {
 	case addr := <-ready:
 		return cancel, done, server, "http://" + addr
+
 	case err := <-done:
 		require.FailNow(t, "test failed", "server failed to start: %v", err)
+
 	case <-time.After(5 * time.Second):
 		require.FailNow(t, "server startup timed out")
 	}
+
 	return nil, nil, nil, ""
 }
 
 func awaitServer(t *testing.T, done <-chan error) error {
 	t.Helper()
+
 	select {
 	case err := <-done:
 		return err
+
 	case <-time.After(5 * time.Second):
 		require.FailNow(t, "server did not stop")
 		return nil
@@ -52,78 +78,136 @@ func awaitServer(t *testing.T, done <-chan error) error {
 func TestServerShutdownWaitsForActiveRequest(t *testing.T) {
 	entered, release := make(chan struct{}), make(chan struct{})
 	defer close(release)
-	cancel, done, server, url := runTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { close(entered); <-release; w.Write([]byte("completed")) }), time.Second)
+
+	cancel, done, server, url := runTestServer(
+		t,
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			close(entered)
+			<-release
+			w.Write([]byte("completed"))
+		}),
+		time.Second,
+	)
+
 	response := make(chan error, 1)
+
 	go func() {
 		client := &http.Client{Timeout: 5 * time.Second}
+
 		res, err := client.Get(url)
 		if err == nil {
 			defer res.Body.Close()
+
 			var body []byte
 			body, err = io.ReadAll(res.Body)
+
 			if err == nil && string(body) != "completed" {
 				err = errors.New("incomplete response")
 			}
 		}
+
 		response <- err
 	}()
+
 	select {
 	case <-entered:
 	case <-time.After(5 * time.Second):
 		require.FailNow(t, "request not received")
 	}
+
 	shuttingDown := make(chan struct{})
-	server.server.RegisterOnShutdown(func() { close(shuttingDown) })
+
+	server.server.RegisterOnShutdown(func() {
+		close(shuttingDown)
+	})
+
 	cancel()
+
 	select {
 	case <-shuttingDown:
 	case <-time.After(5 * time.Second):
 		require.FailNow(t, "shutdown not started")
 	}
+
 	select {
 	case err := <-done:
 		require.FailNow(t, "test failed", "shutdown returned before request completed: %v", err)
 	default:
 	}
+
 	release <- struct{}{}
+
 	select {
 	case err := <-response:
 		require.NoError(t, err)
+
 	case <-time.After(5 * time.Second):
 		require.FailNow(t, "request did not complete")
 	}
+
 	require.NoError(t, awaitServer(t, done))
 }
 
 func TestServerShutdownTimeoutClosesConnections(t *testing.T) {
 	entered, finished := make(chan struct{}), make(chan struct{})
-	cancel, done, _, url := runTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { close(entered); <-r.Context().Done(); close(finished) }), 50*time.Millisecond)
+
+	cancel, done, _, url := runTestServer(
+		t,
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			close(entered)
+			<-r.Context().Done()
+			close(finished)
+		}),
+		50*time.Millisecond,
+	)
+
 	response := make(chan error, 1)
+
 	go func() {
-		res, err := (&http.Client{Timeout: 5 * time.Second}).Get(url)
+		res, err := (&http.Client{
+			Timeout: 5 * time.Second,
+		}).Get(url)
+
 		if res != nil {
 			res.Body.Close()
 		}
+
 		response <- err
 	}()
+
 	select {
 	case <-entered:
 	case <-time.After(5 * time.Second):
 		require.FailNow(t, "request not received")
 	}
+
 	cancel()
+
 	{
 		err := awaitServer(t, done)
-		require.ErrorIs(t, err, context.DeadlineExceeded, "expected shutdown timeout, got %v", err)
+		var serverErr *ServerError
+		require.ErrorAs(t, err, &serverErr)
+		require.Equal(t, "127.0.0.1", serverErr.Host)
+		require.Equal(t, 0, serverErr.Port)
+		require.ErrorIs(
+			t,
+			err,
+			context.DeadlineExceeded,
+			"expected shutdown timeout, got %v",
+			err,
+		)
 	}
+
 	select {
 	case <-finished:
 	case <-time.After(5 * time.Second):
 		require.FailNow(t, "active connection was not canceled")
 	}
+
 	select {
 	case err := <-response:
 		require.Error(t, err, "expected connection closure")
+
 	case <-time.After(5 * time.Second):
 		require.FailNow(t, "client did not finish")
 	}
@@ -133,18 +217,76 @@ func TestServerBindFailure(t *testing.T) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	defer listener.Close()
-	server := NewServer(config.Config{HTTPAddr: listener.Addr().String(), ShutdownTimeout: time.Second}, http.NotFoundHandler(), slog.New(slog.NewTextHandler(io.Discard, nil)))
+
+	server := NewServer(
+		config.Config{
+			HTTPAddr:        listener.Addr().String(),
+			ShutdownTimeout: time.Second,
+		},
+		http.NotFoundHandler(),
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+	)
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	{
-		err := server.Run(ctx)
-		require.Error(t, err, "occupied port did not cause startup failure")
-	}
+
+	err = server.Run(ctx)
+	require.Error(t, err, "occupied port did not cause startup failure")
+
+	var serverErr *ServerError
+	require.ErrorAs(t, err, &serverErr)
+
+	host, port, err := net.SplitHostPort(listener.Addr().String())
+	require.NoError(t, err)
+
+	portNumber, err := strconv.Atoi(port)
+	require.NoError(t, err)
+
+	require.Equal(t, host, serverErr.Host)
+	require.Equal(t, portNumber, serverErr.Port)
+	require.Error(t, serverErr.Err)
+	require.ErrorIs(t, serverErr, serverErr.Err)
+	require.Equal(t, serverErr.Err.Error(), serverErr.Error())
 }
 
 func TestServerAlreadyCanceledContext(t *testing.T) {
+	logger, logs := newTestLogger()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	server := NewServer(config.Config{HTTPAddr: "127.0.0.1:0", ShutdownTimeout: time.Second}, http.NotFoundHandler(), slog.New(slog.NewTextHandler(io.Discard, nil)))
+
+	server := NewServer(
+		config.Config{
+			HTTPAddr:        "127.0.0.1:0",
+			ShutdownTimeout: time.Second,
+		},
+		http.NotFoundHandler(),
+		logger,
+	)
+
 	require.NoError(t, server.Run(ctx))
+	entries := logs.entries(t)
+	require.Len(t, entries, 3)
+	var messages []string
+	for _, entry := range entries {
+		require.Equal(t, "INFO", entry["level"])
+		require.Equal(t, "127.0.0.1", entry["server.address"])
+		require.EqualValues(t, 0, entry["server.port"])
+		messages = append(messages, entry["msg"].(string))
+	}
+	require.ElementsMatch(t, []string{"server starting", "server shutting down", "server stopped"}, messages)
+}
+
+func TestServerInvalidAddress(t *testing.T) {
+	for _, tc := range []struct{ name, address, message string }{
+		{"missing port", "127.0.0.1", "invalid server address"},
+		{"invalid port", "127.0.0.1:invalid", "invalid server port"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			logger, logs := newTestLogger()
+			server := NewServer(config.Config{HTTPAddr: tc.address, ShutdownTimeout: time.Second}, http.NotFoundHandler(), logger)
+			err := server.Run(context.Background())
+			require.ErrorContains(t, err, tc.message)
+			require.Empty(t, logs.entries(t))
+		})
+	}
 }
