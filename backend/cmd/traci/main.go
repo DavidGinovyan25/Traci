@@ -18,6 +18,7 @@ import (
 func main() {
 	cfg := config.NewConfig()
 	if err := cfg.Load(); err != nil {
+		fmt.Fprintln(os.Stderr, "configuration loading failed:", err)
 		os.Exit(1)
 	}
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
@@ -43,19 +44,22 @@ func main() {
 		var serverErr *httptransport.ServerError
 		if errors.As(err, &serverErr) {
 			logger.Error(
-				"application stopped",
+				"Application stopped with error",
 				"error", err,
 				"server.address", serverErr.Host,
 				"server.port", serverErr.Port,
 			)
 		} else {
-			logger.Error("application stopped", "error", err)
+			logger.Error(
+				"Application stopped with error",
+				"error", err,
+			)
 		}
 		os.Exit(1)
 	}
 }
 
-func run(logger *slog.Logger, cfg *config.Config) error {
+func run(logger *slog.Logger, cfg *config.Config) (runErr error) {
 	command := "serve"
 	if len(os.Args) > 1 {
 		command = os.Args[1]
@@ -63,13 +67,17 @@ func run(logger *slog.Logger, cfg *config.Config) error {
 	if len(os.Args) > 2 || (command != "serve" && command != "create-admin" && command != "migrate") {
 		return fmt.Errorf("usage: traci [serve|create-admin|migrate]")
 	}
-
 	if command == "migrate" {
+		logger.Info("Database migration started", "db.system.name", "postgresql")
 		m, err := postgres.NewEmbeddedMigrator(cfg.PostgresURL, logger)
 		if err != nil {
-			return err
+			return fmt.Errorf("initialize database migrator: %w", err)
 		}
-		defer m.Close()
+		defer func() {
+			if err := m.Close(); err != nil {
+				runErr = errors.Join(runErr, err)
+			}
+		}()
 		return m.Up()
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -79,17 +87,20 @@ func run(logger *slog.Logger, cfg *config.Config) error {
 		if err != nil {
 			return err
 		}
-		user, err := infrastructure.CreateAdmin(ctx, *cfg, input, logger)
-		if err != nil {
-			return err
+		if _, err := infrastructure.CreateAdmin(ctx, *cfg, input, logger); err != nil {
+			return fmt.Errorf("create administrator: %w", err)
 		}
-		logger.Info("administrator created", "id", user.ID, "email", user.Email)
 		return nil
 	}
+	logger.Info("Application starting")
 	app, err := infrastructure.NewApp(ctx, *cfg, logger)
 	if err != nil {
-		return err
+		return fmt.Errorf("initialize application: %w", err)
 	}
 	defer app.Close()
-	return app.Run(ctx)
+	if err := app.Run(ctx); err != nil {
+		return err
+	}
+	logger.Info("Application stopped")
+	return nil
 }
