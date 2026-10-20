@@ -17,11 +17,18 @@ var _ domain.UserRepository = (*UserRepository)(nil)
 func NewUserRepository(queries db.Querier) *UserRepository { return &UserRepository{queries: queries} }
 
 func (r *UserRepository) Create(ctx context.Context, user *domain.User) error {
-	err := r.queries.CreateUser(ctx, db.CreateUserParams{
-		ID: databaseUUID(user.ID), Role: db.Role(user.Role), Username: user.Username,
-		FirstName: user.FirstName, SecondName: user.SecondName, Email: user.Email,
-		PasswordHash: user.PasswordHash, IsBlocked: user.IsBlocked,
-	})
+	err := r.queries.CreateUser(ctx, 
+		db.CreateUserParams{
+			ID: databaseUUID(user.ID), 
+			Role: db.Role(user.Role), 
+			Username: user.Username,
+			FirstName: user.FirstName, 
+			SecondName: user.SecondName, 
+			Email: user.Email,
+			PasswordHash: user.PasswordHash, 
+			IsBlocked: user.IsBlocked,
+		},
+	)
 	return repositoryError("create user", err)
 }
 
@@ -65,9 +72,14 @@ func (r *UserRepository) List(ctx context.Context, limit, offset int) ([]domain.
 
 func (r *UserRepository) Update(ctx context.Context, user *domain.User) error {
 	rows, err := r.queries.UpdateUser(ctx, db.UpdateUserParams{
-		ID: databaseUUID(user.ID), Role: db.Role(user.Role), Username: user.Username,
-		FirstName: user.FirstName, SecondName: user.SecondName, Email: user.Email,
-		PasswordHash: user.PasswordHash, IsBlocked: user.IsBlocked,
+		ID: databaseUUID(user.ID), 
+		Role: db.Role(user.Role), 
+		Username: user.Username,
+		FirstName: user.FirstName, 
+		SecondName: user.SecondName, 
+		Email: user.Email,
+		PasswordHash: user.PasswordHash, 
+		IsBlocked: user.IsBlocked,
 	})
 	return affectedRows("update user", rows, err)
 }
@@ -78,7 +90,14 @@ func (r *UserRepository) Delete(ctx context.Context, id uuid.UUID) error {
 }
 
 func userFromRow(row db.User) domain.User {
-	return domain.User{ID: uuid.UUID(row.ID.Bytes), Role: domain.Role(row.Role),
-		Username: row.Username, FirstName: row.FirstName, SecondName: row.SecondName,
-		Email: row.Email, PasswordHash: row.PasswordHash, IsBlocked: row.IsBlocked}
+	return domain.User{
+		ID: uuid.UUID(row.ID.Bytes), 
+		Role: domain.Role(row.Role),
+		Username: row.Username, 
+		FirstName: row.FirstName, 
+		SecondName: row.SecondName,
+		Email: row.Email, 
+		PasswordHash: row.PasswordHash, 
+		IsBlocked: row.IsBlocked,
+	}
 }

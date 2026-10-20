@@ -2,6 +2,7 @@ package infrastructure
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	"traci/backend/db/postgres"
@@ -22,7 +23,7 @@ type App struct {
 func NewApp(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, error) {
 	credentials, err := auth.NewCredentials(cfg.JWTSecret, cfg.TokenTTL)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error with credentials %w", err)
 	}
 	connectCtx, cancel := context.WithTimeout(ctx, cfg.ConnectTimeout)
 	defer cancel()
@@ -32,8 +33,10 @@ func NewApp(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, 
 	}
 	queries := db.New(database.Pool())
 	service := application.NewService(
-		sqlrepository.NewUserRepository(queries), sqlrepository.NewMovieRepository(queries),
-		sqlrepository.NewCollectionRepository(queries), credentials,
+		sqlrepository.NewUserRepository(queries), 
+		sqlrepository.NewMovieRepository(queries),
+		sqlrepository.NewCollectionRepository(queries), 
+		credentials,
 	)
 	handler := httptransport.NewHandler(service, logger, cfg.TokenTTL)
 	router, err := httptransport.NewRouter(handler, logger)
