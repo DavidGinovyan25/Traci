@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"traci/backend/internal/domain"
+	"traci/backend/internal/testutil"
 )
 
 type userStub struct {
@@ -77,7 +78,7 @@ func TestRegisterStoresHashAndNormalizesEmail(t *testing.T) {
 		assert.Equal(t, input.Password, password, "wrong password sent to hasher")
 		return "stored-hash", nil
 	}}
-	service := NewService(users, nil, nil, credentials)
+	service := NewService(users, nil, nil, credentials, testutil.Logger())
 	user, err := service.Register(context.Background(), input)
 	require.NoError(t, err, "register: %v", err)
 	require.NotNil(t, user, "register: %v", err)
@@ -86,14 +87,15 @@ func TestRegisterStoresHashAndNormalizesEmail(t *testing.T) {
 
 func TestRegisterFailure(t *testing.T) {
 	failure := errors.New("hasher unavailable")
-	service := NewService(nil, nil, nil, credentialStub{hash: func(string) (string, error) { return "", failure }})
+	service := NewService(nil, nil, nil, credentialStub{hash: func(string) (string, error) { return "", failure }}, testutil.Logger())
 	{
 		user, err := service.Register(context.Background(), Register{})
 		require.Nil(t, user, "hash error: %v", err)
 		require.ErrorIs(t, err, failure, "hash error: %v", err)
 	}
 	service = NewService(userStub{create: func(context.Context, *domain.User) error { return domain.ErrAlreadyExists }}, nil, nil,
-		credentialStub{hash: func(string) (string, error) { return "hash", nil }})
+		credentialStub{hash: func(string) (string, error) { return "hash", nil }}, testutil.Logger(),
+	)
 	{
 		user, err := service.Register(context.Background(), Register{})
 		require.Nil(t, user, "duplicate error: %v", err)
@@ -131,7 +133,8 @@ func TestLoginPolicies(t *testing.T) {
 					assert.Equal(t, user.ID, id, "wrong token subject")
 					return "token", tc.issueErr
 				},
-			})
+			}, testutil.Logger(),
+			)
 			token, err := service.Login(context.Background(), Login{Email: "ALICE@EXAMPLE.COM", Password: "password"})
 			require.ErrorIs(t, err, tc.want, "got %v, want %v", err, tc.want)
 			if tc.want == nil {
@@ -151,7 +154,8 @@ func TestAuthenticateUsesCurrentUserState(t *testing.T) {
 		assert.Equal(t, id, requested, "wrong token subject")
 		copy := current
 		return &copy, nil
-	}}, nil, nil, credentialStub{parse: func(token string) (uuid.UUID, error) { return id, nil }})
+	}}, nil, nil, credentialStub{parse: func(token string) (uuid.UUID, error) { return id, nil }}, testutil.Logger(),
+	)
 	actor, err := service.Authenticate(context.Background(), "same-token")
 	require.NoError(t, err, "first authentication: %v", err)
 	assert.Equal(t, domain.RoleUser, actor.Role, "first authentication: %v", err)
@@ -180,7 +184,8 @@ func TestAuthenticateErrors(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			lookedUp := false
 			service := NewService(userStub{byID: func(context.Context, uuid.UUID) (*domain.User, error) { lookedUp = true; return nil, tc.lookupErr }}, nil, nil,
-				credentialStub{parse: func(string) (uuid.UUID, error) { return uuid.New(), tc.parseErr }})
+				credentialStub{parse: func(string) (uuid.UUID, error) { return uuid.New(), tc.parseErr }}, testutil.Logger(),
+			)
 			{
 				_, err := service.Authenticate(context.Background(), "token")
 				require.ErrorIs(t, err, tc.want, "got %v, want %v", err, tc.want)
@@ -191,7 +196,7 @@ func TestAuthenticateErrors(t *testing.T) {
 }
 
 func TestAdminOperationsDenyBeforeRepositoryAccess(t *testing.T) {
-	service := NewService(nil, nil, nil, nil)
+	service := NewService(nil, nil, nil, nil, testutil.Logger())
 	target := uuid.New()
 	operations := []struct {
 		name string
@@ -240,7 +245,7 @@ func TestAdminOperationsDenyBeforeRepositoryAccess(t *testing.T) {
 }
 
 func TestAdminCannotModifyOwnAccount(t *testing.T) {
-	service := NewService(nil, nil, nil, nil)
+	service := NewService(nil, nil, nil, nil, testutil.Logger())
 	actor := &domain.User{ID: uuid.New(), Role: domain.RoleAdmin}
 	for _, blocked := range []bool{true, false} {
 		{
@@ -266,11 +271,12 @@ func TestAddCollectionItemKeepsOwner(t *testing.T) {
 		assert.Equal(t, domain.MovieStatusWatched, item.Status, "wrong collection item: %+v", item)
 		require.NotEqual(t, uuid.Nil, item.ID, "wrong collection item: %+v", item)
 		return nil
-	}}, nil)
+	}}, nil, testutil.Logger(),
+	)
 	entry, err := service.AddCollectionItem(context.Background(), userID, movieID, domain.MovieStatusWatched)
 	require.NoError(t, err, "add collection: %v", err)
 	assert.Equal(t, movieID, entry.Movie.ID, "add collection: %v", err)
-	service = NewService(nil, movieStub{get: func(context.Context, uuid.UUID) (*domain.Movie, error) { return nil, domain.ErrNotFound }}, nil, nil)
+	service = NewService(nil, movieStub{get: func(context.Context, uuid.UUID) (*domain.Movie, error) { return nil, domain.ErrNotFound }}, nil, nil, testutil.Logger())
 	{
 		_, err := service.AddCollectionItem(context.Background(), userID, movieID, domain.MovieStatusPlanned)
 		require.ErrorIs(t, err, domain.ErrNotFound, "missing movie: %v", err)
@@ -289,7 +295,8 @@ func TestListCollectionJoinsMoviesAndKeepsPagination(t *testing.T) {
 			require.NotNil(t, got.Status, "wrong collection filter")
 			assert.Equal(t, status, *got.Status, "wrong collection filter")
 			return []domain.CollectionItem{{UserID: userID, MovieID: movieID}}, 12, nil
-		}}, nil)
+		}}, nil, testutil.Logger(),
+	)
 	page, err := service.ListCollection(context.Background(), userID, filter)
 	require.NoError(t, err, "joined page: %+v, %v", page, err)
 	assert.EqualValues(t, 12, page.Total, "joined page: %+v, %v", page, err)
@@ -356,7 +363,7 @@ func TestRepositoryFailuresPropagate(t *testing.T) {
 	id := uuid.New()
 	movie := domain.NewMovie("Film", 90, domain.MovieGenreDrama, 2020, nil)
 	item := domain.NewCollectionItem(id, movie.ID, domain.MovieStatusPlanned)
-	service := NewService(failingUsers{err: failure}, failingMovies{err: failure}, failingCollection{err: failure}, nil)
+	service := NewService(failingUsers{err: failure}, failingMovies{err: failure}, failingCollection{err: failure}, nil, testutil.Logger())
 	cases := []struct {
 		name string
 		run  func() error
@@ -386,21 +393,21 @@ func TestRepositoryFailuresPropagate(t *testing.T) {
 		})
 	}
 	t.Run("add collection insert failure", func(t *testing.T) {
-		service := NewService(nil, movieStub{get: func(context.Context, uuid.UUID) (*domain.Movie, error) { return movie, nil }}, failingCollection{err: failure}, nil)
+		service := NewService(nil, movieStub{get: func(context.Context, uuid.UUID) (*domain.Movie, error) { return movie, nil }}, failingCollection{err: failure}, nil, testutil.Logger())
 		{
 			_, err := service.AddCollectionItem(ctx, id, movie.ID, domain.MovieStatusPlanned)
 			require.ErrorIs(t, err, failure)
 		}
 	})
 	t.Run("block update failure", func(t *testing.T) {
-		service := NewService(failingUsers{err: failure, user: &domain.User{ID: id}}, nil, nil, nil)
+		service := NewService(failingUsers{err: failure, user: &domain.User{ID: id}}, nil, nil, nil, testutil.Logger())
 		{
 			_, err := service.SetUserBlocked(ctx, admin, id, true)
 			require.ErrorIs(t, err, failure)
 		}
 	})
 	t.Run("get collection movie failure", func(t *testing.T) {
-		service := NewService(nil, movieStub{get: func(context.Context, uuid.UUID) (*domain.Movie, error) { return nil, failure }}, collectionLookup{item: item}, nil)
+		service := NewService(nil, movieStub{get: func(context.Context, uuid.UUID) (*domain.Movie, error) { return nil, failure }}, collectionLookup{item: item}, nil, testutil.Logger())
 		{
 			_, err := service.GetCollectionItem(ctx, id, movie.ID)
 			require.ErrorIs(t, err, failure)
@@ -420,7 +427,8 @@ func (s collectionLookup) Get(context.Context, uuid.UUID, uuid.UUID) (*domain.Co
 func TestCreateAdminUsesAdminRoleAndHashesPassword(t *testing.T) {
 	var stored *domain.User
 	service := NewService(userStub{create: func(ctx context.Context, user *domain.User) error { stored = user; return nil }}, nil, nil,
-		credentialStub{hash: func(password string) (string, error) { assert.Equal(t, "password123", password); return "hashed", nil }})
+		credentialStub{hash: func(password string) (string, error) { assert.Equal(t, "password123", password); return "hashed", nil }}, testutil.Logger(),
+	)
 	user, err := service.CreateAdmin(context.Background(), Register{Username: "admin", FirstName: "Admin", SecondName: "User", Email: "ADMIN@example.com", Password: "password123"})
 	require.NoError(t, err)
 	require.NotNil(t, stored)
@@ -433,12 +441,13 @@ func TestCreateAdminUsesAdminRoleAndHashesPassword(t *testing.T) {
 
 func TestCreateAdminFailures(t *testing.T) {
 	failure := errors.New("hash unavailable")
-	service := NewService(nil, nil, nil, credentialStub{hash: func(string) (string, error) { return "", failure }})
+	service := NewService(nil, nil, nil, credentialStub{hash: func(string) (string, error) { return "", failure }}, testutil.Logger())
 	user, err := service.CreateAdmin(context.Background(), Register{})
 	require.ErrorIs(t, err, failure)
 	assert.Nil(t, user)
 	service = NewService(userStub{create: func(context.Context, *domain.User) error { return domain.ErrAlreadyExists }}, nil, nil,
-		credentialStub{hash: func(string) (string, error) { return "hashed", nil }})
+		credentialStub{hash: func(string) (string, error) { return "hashed", nil }}, testutil.Logger(),
+	)
 	user, err = service.CreateAdmin(context.Background(), Register{})
 	require.ErrorIs(t, err, domain.ErrAlreadyExists)
 	assert.Nil(t, user)

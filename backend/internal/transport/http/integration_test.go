@@ -28,8 +28,8 @@ func TestHTTPPostgres(t *testing.T) {
 	queries := db.New(conn)
 	credentials, err := auth.NewCredentials(strings.Repeat("a", 32), time.Hour)
 	require.NoError(t, err)
-	service := application.NewService(sqlrepository.NewUserRepository(queries), sqlrepository.NewMovieRepository(queries), sqlrepository.NewCollectionRepository(queries), credentials)
 	logger, logs := newTestLogger()
+	service := application.NewService(sqlrepository.NewUserRepository(queries), sqlrepository.NewMovieRepository(queries), sqlrepository.NewCollectionRepository(queries), credentials, logger)
 	router, err := NewRouter(NewHandler(service, logger, time.Hour), logger)
 	require.NoError(t, err)
 	request := func(method, path, token, body string, want int) []byte {

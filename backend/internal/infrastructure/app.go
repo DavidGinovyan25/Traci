@@ -23,20 +23,21 @@ type App struct {
 func NewApp(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, error) {
 	credentials, err := auth.NewCredentials(cfg.JWTSecret, cfg.TokenTTL)
 	if err != nil {
-		return nil, fmt.Errorf("error with credentials %w", err)
+		return nil, fmt.Errorf("error with credentials: %w", err)
 	}
 	connectCtx, cancel := context.WithTimeout(ctx, cfg.ConnectTimeout)
 	defer cancel()
-	database, err := postgres.NewPostgres(connectCtx, cfg.PostgresURL)
+	database, err := postgres.NewPostgres(connectCtx, cfg.PostgresURL, logger)
 	if err != nil {
 		return nil, err
 	}
 	queries := db.New(database.Pool())
 	service := application.NewService(
-		sqlrepository.NewUserRepository(queries), 
+		sqlrepository.NewUserRepository(queries),
 		sqlrepository.NewMovieRepository(queries),
-		sqlrepository.NewCollectionRepository(queries), 
+		sqlrepository.NewCollectionRepository(queries),
 		credentials,
+		logger,
 	)
 	handler := httptransport.NewHandler(service, logger, cfg.TokenTTL)
 	router, err := httptransport.NewRouter(handler, logger)
@@ -44,24 +45,33 @@ func NewApp(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, 
 		database.Close()
 		return nil, err
 	}
-	return &App{server: httptransport.NewServer(cfg, router, logger), database: database}, nil
+	return &App{
+		server:   httptransport.NewServer(cfg, router, logger),
+		database: database,
+	}, nil
 }
 
 func (a *App) Run(ctx context.Context) error { return a.server.Run(ctx) }
 func (a *App) Close()                        { a.database.Close() }
 
-func CreateAdmin(ctx context.Context, cfg config.Config, input application.Register) (*domain.User, error) {
+func CreateAdmin(ctx context.Context, cfg config.Config, input application.Register, logger *slog.Logger) (*domain.User, error) {
 	credentials, err := auth.NewCredentials(cfg.JWTSecret, cfg.TokenTTL)
 	if err != nil {
 		return nil, err
 	}
 	connectCtx, cancel := context.WithTimeout(ctx, cfg.ConnectTimeout)
 	defer cancel()
-	database, err := postgres.NewPostgres(connectCtx, cfg.PostgresURL)
+	database, err := postgres.NewPostgres(connectCtx, cfg.PostgresURL, logger)
 	if err != nil {
 		return nil, err
 	}
 	defer database.Close()
-	service := application.NewService(sqlrepository.NewUserRepository(db.New(database.Pool())), nil, nil, credentials)
+	service := application.NewService(
+		sqlrepository.NewUserRepository(db.New(database.Pool())),
+		nil,
+		nil,
+		credentials,
+		logger,
+	)
 	return service.CreateAdmin(ctx, input)
 }

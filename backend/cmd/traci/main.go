@@ -65,7 +65,7 @@ func run(logger *slog.Logger, cfg *config.Config) error {
 	}
 
 	if command == "migrate" {
-		m, err := postgres.NewEmbeddedMigrator(cfg.PostgresURL)
+		m, err := postgres.NewEmbeddedMigrator(cfg.PostgresURL, logger)
 		if err != nil {
 			return err
 		}
@@ -79,7 +79,7 @@ func run(logger *slog.Logger, cfg *config.Config) error {
 		if err != nil {
 			return err
 		}
-		user, err := infrastructure.CreateAdmin(ctx, *cfg, input)
+		user, err := infrastructure.CreateAdmin(ctx, *cfg, input, logger)
 		if err != nil {
 			return err
 		}

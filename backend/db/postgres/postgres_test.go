@@ -14,7 +14,7 @@ import (
 func TestPostgresPoolAndMigrations(t *testing.T) {
 	url := testutil.Postgres(t)
 	ctx := context.Background()
-	database, err := postgres.NewPostgres(ctx, url)
+	database, err := postgres.NewPostgres(ctx, url, testutil.Logger())
 	require.NoError(t, err)
 	defer database.Close()
 	var version int64
@@ -34,7 +34,7 @@ func TestPostgresPoolAndMigrations(t *testing.T) {
 
 func TestPostgresRejectsInvalidURL(t *testing.T) {
 	{
-		database, err := postgres.NewPostgres(context.Background(), "://invalid")
+		database, err := postgres.NewPostgres(context.Background(), "://invalid", testutil.Logger())
 		require.Error(t, err, "got database=%v err=%v", database, err)
 		require.Nil(t, database, "got database=%v err=%v", database, err)
 	}

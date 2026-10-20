@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strings"
 
 	"github.com/google/uuid"
@@ -22,10 +23,23 @@ type Service struct {
 	movies      domain.MovieRepository
 	collection  domain.CollectionRepository
 	credentials Credentials
+	logger      *slog.Logger
 }
 
-func NewService(users domain.UserRepository, movies domain.MovieRepository, collection domain.CollectionRepository, credentials Credentials) *Service {
-	return &Service{users: users, movies: movies, collection: collection, credentials: credentials}
+func NewService(
+	users domain.UserRepository,
+	movies domain.MovieRepository,
+	collection domain.CollectionRepository,
+	credentials Credentials,
+	logger *slog.Logger,
+) *Service {
+	return &Service{
+		users:       users,
+		movies:      movies,
+		collection:  collection,
+		credentials: credentials,
+		logger:      logger,
+	}
 }
 
 func (s *Service) Register(ctx context.Context, input Register) (*domain.User, error) {
@@ -46,6 +60,12 @@ func (s *Service) createUser(ctx context.Context, input Register, role domain.Ro
 	if err := s.users.Create(ctx, user); err != nil {
 		return nil, err
 	}
+	s.logger.InfoContext(
+		ctx,
+		"User created",
+		"user.id", user.ID.String(),
+		"user.role", string(user.Role),
+	)
 	return user, nil
 }
 
@@ -110,7 +130,16 @@ func (s *Service) CreateMovie(ctx context.Context, actor *domain.User, movie *do
 	if err := requireAdmin(actor); err != nil {
 		return err
 	}
-	return s.movies.Create(ctx, movie)
+	if err := s.movies.Create(ctx, movie); err != nil {
+		return err
+	}
+	s.logger.InfoContext(
+		ctx,
+		"Movie created",
+		"user.id", actor.ID.String(),
+		"movie.id", movie.ID.String(),
+	)
+	return nil
 }
 
 func (s *Service) UpdateMovie(ctx context.Context, actor *domain.User, movie *domain.Movie) (*domain.Movie, error) {
@@ -120,14 +149,33 @@ func (s *Service) UpdateMovie(ctx context.Context, actor *domain.User, movie *do
 	if err := s.movies.Update(ctx, movie); err != nil {
 		return nil, err
 	}
-	return s.movies.GetByID(ctx, movie.ID)
+	updated, err := s.movies.GetByID(ctx, movie.ID)
+	if err != nil {
+		return nil, err
+	}
+	s.logger.InfoContext(
+		ctx,
+		"Movie updated",
+		"user.id", actor.ID.String(),
+		"movie.id", movie.ID.String(),
+	)
+	return updated, nil
 }
 
 func (s *Service) DeleteMovie(ctx context.Context, actor *domain.User, id uuid.UUID) error {
 	if err := requireAdmin(actor); err != nil {
 		return err
 	}
-	return s.movies.Delete(ctx, id)
+	if err := s.movies.Delete(ctx, id); err != nil {
+		return err
+	}
+	s.logger.InfoContext(
+		ctx,
+		"Movie deleted",
+		"user.id", actor.ID.String(),
+		"movie.id", id.String(),
+	)
+	return nil
 }
 
 func (s *Service) GetCollectionItem(ctx context.Context, userID, movieID uuid.UUID) (CollectionEntry, error) {
@@ -167,6 +215,12 @@ func (s *Service) AddCollectionItem(ctx context.Context, userID, movieID uuid.UU
 	if err := s.collection.Create(ctx, item); err != nil {
 		return CollectionEntry{}, err
 	}
+	s.logger.InfoContext(
+		ctx,
+		"Movie added to collection",
+		"user.id", userID.String(),
+		"movie.id", movieID.String(),
+	)
 	return CollectionEntry{Item: *item, Movie: *movie}, nil
 }
 
@@ -174,11 +228,30 @@ func (s *Service) UpdateCollectionItem(ctx context.Context, item *domain.Collect
 	if err := s.collection.Update(ctx, item); err != nil {
 		return CollectionEntry{}, err
 	}
-	return s.GetCollectionItem(ctx, item.UserID, item.MovieID)
+	entry, err := s.GetCollectionItem(ctx, item.UserID, item.MovieID)
+	if err != nil {
+		return CollectionEntry{}, err
+	}
+	s.logger.InfoContext(
+		ctx,
+		"Collection item updated",
+		"user.id", item.UserID.String(),
+		"movie.id", item.MovieID.String(),
+	)
+	return entry, nil
 }
 
 func (s *Service) DeleteCollectionItem(ctx context.Context, userID, movieID uuid.UUID) error {
-	return s.collection.Delete(ctx, userID, movieID)
+	if err := s.collection.Delete(ctx, userID, movieID); err != nil {
+		return err
+	}
+	s.logger.InfoContext(
+		ctx,
+		"Movie removed from collection",
+		"user.id", userID.String(),
+		"movie.id", movieID.String(),
+	)
+	return nil
 }
 
 func (s *Service) ListUsers(ctx context.Context, actor *domain.User, limit, offset int) (UserPage, error) {
@@ -211,6 +284,13 @@ func (s *Service) SetUserBlocked(ctx context.Context, actor *domain.User, id uui
 	if err := s.users.Update(ctx, user); err != nil {
 		return nil, err
 	}
+	s.logger.WarnContext(
+		ctx,
+		"User access status changed",
+		"user.id", id.String(),
+		"admin.id", actor.ID.String(),
+		"user.blocked", blocked,
+	)
 	return user, nil
 }
 
@@ -221,5 +301,14 @@ func (s *Service) DeleteUser(ctx context.Context, actor *domain.User, id uuid.UU
 	if actor.ID == id {
 		return ErrSelfModification
 	}
-	return s.users.Delete(ctx, id)
+	if err := s.users.Delete(ctx, id); err != nil {
+		return err
+	}
+	s.logger.WarnContext(
+		ctx,
+		"User deleted",
+		"user.id", id.String(),
+		"admin.id", actor.ID.String(),
+	)
+	return nil
 }

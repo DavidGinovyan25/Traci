@@ -30,7 +30,7 @@ func Postgres(t *testing.T) string {
 	_, file, _, ok := runtime.Caller(0)
 	require.True(t, ok, "cannot locate migrations")
 	migrationPath := "file://" + filepath.Join(filepath.Dir(file), "../../db/postgres/migrations")
-	migrator, err := postgres.NewMigrator(migrationPath, url)
+	migrator, err := postgres.NewMigrator(migrationPath, url, Logger())
 	require.NoError(t, err)
 	defer func() {
 		assert.NoError(t, migrator.Close())
