@@ -29,6 +29,9 @@ func main() {
 					a.Value.Time().UTC().Format("2006-01-02T15:04:05.000Z"),
 				)
 			}
+			if a.Key == slog.MessageKey && len(groups) == 0 {
+				a.Key = "message"
+			}
 			return a
 		},
 	})).With(
