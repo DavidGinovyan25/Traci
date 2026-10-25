@@ -49,3 +49,10 @@ minikube-load: images-build
 
 minikube-deploy:
 	./deploy.sh
+
+minikube-logging:
+	./logging.sh
+
+minikube-delete-logging:
+	helm uninstall vector -n observability
+	helm uninstall vls -n observability
