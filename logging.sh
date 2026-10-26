@@ -2,8 +2,8 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VICTORIA_VALUES="$PROJECT_ROOT/k8s/victoria-logs/values.yaml"
-VECTOR_VALUES="$PROJECT_ROOT/k8s/vector/values.yaml"
+VICTORIA_VALUES="$PROJECT_ROOT/k8s/observability/victoria-logs/values.yaml"
+VECTOR_VALUES="$PROJECT_ROOT/k8s/observability/vector/values.yaml"
 
 NAMESPACE="observability"
 
