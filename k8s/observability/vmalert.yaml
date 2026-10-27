@@ -1,0 +1,22 @@
+server:
+  datasource:
+    url: "http://vls-victoria-logs-single-server.observability.svc.cluster.local:9428"
+
+  notifier:
+    url: "http://alertmanager.observability.svc.cluster.local:9093"
+
+  config:
+    alerts:
+      groups:
+        - name: traci-logs
+          type: vlogs
+          interval: 1m
+          rules:
+            - alert: TooManyLogs
+              expr: '_time:1m kubernetes.container_name:="traci-backend" | stats count() as total | filter total:>100'
+              for: 1m
+              labels:
+                severity: warning
+              annotations:
+                summary: "Большое количество логов"
+                description: "За последнюю минуту получено более 100 логов"

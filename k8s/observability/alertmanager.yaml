@@ -1,0 +1,21 @@
+extraSecretMounts:
+  - name: telegram
+    secretName: alertmanager-telegram
+    mountPath: /etc/alertmanager/telegram
+    readOnly: true
+
+config:
+  route:
+    receiver: telegram
+    group_by: [alertname, severity]
+    group_wait: 10s
+    group_interval: 1m
+    repeat_interval: 3h
+  receivers:
+    - name: telegram
+      telegram_configs:
+        - bot_token_file: /etc/alertmanager/telegram/bot-token
+          chat_id_file: /etc/alertmanager/telegram/chat-id
+          send_resolved: true
+          parse_mode: ''
+          message: '{{ .Status }}: {{ range .Alerts }}{{ .Labels.alertname }} — {{ .Annotations.summary }}; {{ .Annotations.description }}{{ "\n" }}{{ end }}'
