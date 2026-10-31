@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := build
 
-.PHONY: generate build target test test-unit test-race run docker-up docker-down test-frontend test-e2e create-admin images-build minikube-load minikube-deploy
+.PHONY: generate build target test test-unit test-race run docker-up docker-down test-frontend test-e2e create-admin images-build minikube-load minikube-deploy-app minikube-deploy-observability minikube-delete-observability
 
 generate:
 	cd backend && go generate ./internal/api
@@ -47,12 +47,16 @@ minikube-load: images-build
 	minikube image load traci-backend:v1
 	minikube image load traci-frontend:v1
 
-minikube-deploy:
+minikube-deploy-app:
 	./deploy.sh
 
-minikube-logging:
-	./logging.sh
+minikube-deploy-observability:
+	./deploy_observability.sh
 
-minikube-delete-logging:
+minikube-delete-observability:
+	helm uninstall alertmanager -n observability
+	helm uninstall grafana -n observability
 	helm uninstall vector -n observability
 	helm uninstall vls -n observability
+	helm uninstall vma -n observability
+	helm uninstall vmsingle -n observability
