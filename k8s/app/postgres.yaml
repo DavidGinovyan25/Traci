@@ -48,11 +48,37 @@ spec:
               key: POSTGRES_PASSWORD
         - name: PGDATA
           value: /var/lib/postgresql/data/pgdata
+        - name: DATA_SOURCE_PASS
+          valueFrom:
+            secretKeyRef:
+              name: traci-exporter-secret
+              key: DATA_SOURCE_PASS
         ports:
         - containerPort: 5432
         volumeMounts:
         - name: postgres-data
           mountPath: /var/lib/postgresql/data
+
+      - name: traci-pg-exporter
+        image: prometheuscommunity/postgres-exporter:v0.20.1
+        env:
+        - name: DATA_SOURCE_URI
+          valueFrom:
+            configMapKeyRef:
+              name: my-configmap
+              key: DATA_SOURCE_URI
+        - name: DATA_SOURCE_USER
+          valueFrom:
+            configMapKeyRef:
+              name: my-configmap
+              key: DATA_SOURCE_USER
+        - name: DATA_SOURCE_PASS
+          valueFrom:
+            secretKeyRef:
+              name: traci-exporter-secret
+              key: DATA_SOURCE_PASS
+        ports:
+        - containerPort: 9187
       volumes:
       - name: postgres-data
         persistentVolumeClaim:
