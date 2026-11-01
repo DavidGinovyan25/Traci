@@ -11,7 +11,6 @@ type BusinessMetrics struct {
 	adminMoviesAddedTotal    prometheus.Counter
 	moviesMarkedWatchedTotal prometheus.Counter
 	moviesCurrent            prometheus.Gauge
-	moviesCurrentlyWatched   prometheus.Gauge
 }
 
 func NewBusinessMetrics(reg prometheus.Registerer) *BusinessMetrics {
@@ -47,12 +46,6 @@ func NewBusinessMetrics(reg prometheus.Registerer) *BusinessMetrics {
 			prometheus.GaugeOpts{
 				Name: "traci_movies_current",
 				Help: "Current number of movies in the application catalog.",
-			},
-		),
-		moviesCurrentlyWatched: metricFactory.NewGauge(
-			prometheus.GaugeOpts{
-				Name: "traci_movies_currently_watched",
-				Help: "Current number of movies marked as watched by users.",
 			},
 		),
 	}
