@@ -9,7 +9,6 @@ type BusinessMetrics struct {
 	authenticationsTotal     *prometheus.CounterVec
 	collectionAdditionsTotal prometheus.Counter
 	adminMoviesAddedTotal    prometheus.Counter
-	moviesMarkedWatchedTotal prometheus.Counter
 	moviesCurrent            prometheus.Gauge
 }
 
@@ -34,12 +33,6 @@ func NewBusinessMetrics(reg prometheus.Registerer) *BusinessMetrics {
 			prometheus.CounterOpts{
 				Name: "traci_admin_movies_added_total",
 				Help: "Total number of movies added to the catalog by administrators.",
-			},
-		),
-		moviesMarkedWatchedTotal: metricFactory.NewCounter(
-			prometheus.CounterOpts{
-				Name: "traci_movies_marked_watched_total",
-				Help: "Total number of times users marked a movie as watched.",
 			},
 		),
 		moviesCurrent: metricFactory.NewGauge(

@@ -26,6 +26,10 @@ spec:
     metadata:
       labels:
         app: traci-postgres
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9187"
+        prometheus.io/path: "/metrics"
     spec:
       containers:
       - name: traci-postgres

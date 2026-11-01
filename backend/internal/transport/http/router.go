@@ -40,7 +40,11 @@ func (w *responseWriter) Unwrap() http.ResponseWriter {
 	return w.ResponseWriter
 }
 
-func NewRouter(handler gen.ServerInterface, logger *slog.Logger) (http.Handler, error) {
+func NewRouter(handler gen.ServerInterface, logger *slog.Logger, metrics ...*HTTPMetrics) (http.Handler, error) {
+	var httpMetrics *HTTPMetrics
+	if len(metrics) > 0 {
+		httpMetrics = metrics[0]
+	}
 	specification, err := gen.GetSwagger()
 	if err != nil {
 		return nil, fmt.Errorf("load OpenAPI schema: %w", err)
@@ -73,6 +77,13 @@ func NewRouter(handler gen.ServerInterface, logger *slog.Logger) (http.Handler, 
 	})
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
+		routeName := "unmatched"
+		if r.URL.Path == "/healthz" {
+			routeName = "/healthz"
+		}
+		if httpMetrics != nil {
+			httpMetrics.httpRequestsInFlight.Inc()
+		}
 		rw := &responseWriter{
 			ResponseWriter: w,
 			status:         http.StatusOK,
@@ -97,6 +108,12 @@ func NewRouter(handler gen.ServerInterface, logger *slog.Logger) (http.Handler, 
 					)
 				}
 			}
+			if httpMetrics != nil {
+				httpMetrics.httpRequestsInFlight.Dec()
+				method := metricMethod(r.Method)
+				httpMetrics.httpRequestsTotal.WithLabelValues(routeName, method, strconv.Itoa(rw.status)).Inc()
+				httpMetrics.httpRequestDurationSeconds.WithLabelValues(routeName, method).Observe(time.Since(start).Seconds())
+			}
 			logger.InfoContext(
 				r.Context(),
 				"HTTP request completed",
@@ -109,6 +126,7 @@ func NewRouter(handler gen.ServerInterface, logger *slog.Logger) (http.Handler, 
 		if r.URL.Path != "/healthz" {
 			route, params, err := validator.FindRoute(r)
 			if err == nil {
+				routeName = route.Path
 				r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 				input := &openapi3filter.RequestValidationInput{
 					Request:    r,
@@ -146,4 +164,20 @@ func NewRouter(handler gen.ServerInterface, logger *slog.Logger) (http.Handler, 
 		}
 		router.ServeHTTP(rw, r)
 	}), nil
+}
+
+func metricMethod(method string) string {
+	switch method {
+	case
+		http.MethodGet,
+		http.MethodPost,
+		http.MethodPut,
+		http.MethodPatch,
+		http.MethodDelete,
+		http.MethodHead,
+		http.MethodOptions:
+		return method
+	default:
+		return "OTHER"
+	}
 }

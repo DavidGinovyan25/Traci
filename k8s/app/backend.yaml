@@ -18,6 +18,10 @@ spec:
     metadata:
       labels:
         app: traci-backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "2112"
+        prometheus.io/path: "/metrics"
     spec:
       containers:
       - image: traci-backend:v1
@@ -60,4 +64,7 @@ spec:
 
         ports:
         - containerPort: 8080
+          name: http
+        - containerPort: 2112
+          name: metrics
 ...
