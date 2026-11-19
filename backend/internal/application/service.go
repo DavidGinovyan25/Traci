@@ -24,6 +24,7 @@ type Service struct {
 	collection  domain.CollectionRepository
 	credentials Credentials
 	logger      *slog.Logger
+	metrics     *BusinessMetrics
 }
 
 func NewService(
@@ -32,13 +33,19 @@ func NewService(
 	collection domain.CollectionRepository,
 	credentials Credentials,
 	logger *slog.Logger,
+	metrics ...*BusinessMetrics,
 ) *Service {
+	var businessMetrics *BusinessMetrics
+	if len(metrics) > 0 {
+		businessMetrics = metrics[0]
+	}
 	return &Service{
 		users:       users,
 		movies:      movies,
 		collection:  collection,
 		credentials: credentials,
 		logger:      logger,
+		metrics:     businessMetrics,
 	}
 }
 
@@ -69,7 +76,18 @@ func (s *Service) createUser(ctx context.Context, input Register, role domain.Ro
 	return user, nil
 }
 
-func (s *Service) Login(ctx context.Context, input Login) (string, error) {
+func (s *Service) Login(ctx context.Context, input Login) (token string, loginErr error) {
+	defer func() {
+		if s.metrics == nil {
+			return
+		}
+		result := "failure"
+		if loginErr == nil {
+			result = "success"
+		}
+		s.metrics.authenticationsTotal.WithLabelValues(result).Inc()
+	}()
+
 	user, err := s.users.GetByEmail(ctx, strings.ToLower(input.Email))
 	if errors.Is(err, domain.ErrNotFound) {
 		return "", ErrUnauthorized
@@ -123,7 +141,22 @@ func (s *Service) GetMovie(ctx context.Context, id uuid.UUID) (*domain.Movie, er
 
 func (s *Service) ListMovies(ctx context.Context, filter domain.MovieFilter) (MoviePage, error) {
 	items, total, err := s.movies.List(ctx, filter)
+	if err == nil && s.metrics != nil && filter.Genre == nil && filter.Search == "" {
+		s.metrics.moviesCurrent.Set(float64(total))
+	}
 	return MoviePage{Items: items, Total: total, Limit: filter.Limit, Offset: filter.Offset}, err
+}
+
+func (s *Service) RefreshMoviesCurrent(ctx context.Context) error {
+	if s.metrics == nil {
+		return nil
+	}
+	_, total, err := s.movies.List(ctx, domain.MovieFilter{Limit: 1})
+	if err != nil {
+		return err
+	}
+	s.metrics.moviesCurrent.Set(float64(total))
+	return nil
 }
 
 func (s *Service) CreateMovie(ctx context.Context, actor *domain.User, movie *domain.Movie) error {
@@ -132,6 +165,12 @@ func (s *Service) CreateMovie(ctx context.Context, actor *domain.User, movie *do
 	}
 	if err := s.movies.Create(ctx, movie); err != nil {
 		return err
+	}
+	if s.metrics != nil {
+		s.metrics.adminMoviesAddedTotal.Inc()
+		if err := s.RefreshMoviesCurrent(ctx); err != nil {
+			s.logger.WarnContext(ctx, "Failed to refresh current movie count metric", "error", err)
+		}
 	}
 	s.logger.InfoContext(
 		ctx,
@@ -168,6 +207,11 @@ func (s *Service) DeleteMovie(ctx context.Context, actor *domain.User, id uuid.U
 	}
 	if err := s.movies.Delete(ctx, id); err != nil {
 		return err
+	}
+	if s.metrics != nil {
+		if err := s.RefreshMoviesCurrent(ctx); err != nil {
+			s.logger.WarnContext(ctx, "Failed to refresh current movie count metric", "error", err)
+		}
 	}
 	s.logger.InfoContext(
 		ctx,
@@ -214,6 +258,9 @@ func (s *Service) AddCollectionItem(ctx context.Context, userID, movieID uuid.UU
 	item := domain.NewCollectionItem(userID, movieID, status)
 	if err := s.collection.Create(ctx, item); err != nil {
 		return CollectionEntry{}, err
+	}
+	if s.metrics != nil {
+		s.metrics.collectionAdditionsTotal.Inc()
 	}
 	s.logger.InfoContext(
 		ctx,

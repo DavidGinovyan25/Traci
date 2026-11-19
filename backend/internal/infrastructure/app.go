@@ -20,7 +20,7 @@ type App struct {
 	database *postgres.Postgres
 }
 
-func NewApp(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, error) {
+func NewApp(ctx context.Context, cfg config.Config, logger *slog.Logger, httpMetrics *httptransport.HTTPMetrics, businessMetrics *application.BusinessMetrics) (*App, error) {
 	credentials, err := auth.NewCredentials(cfg.JWTSecret, cfg.TokenTTL)
 	if err != nil {
 		return nil, fmt.Errorf("error with credentials: %w", err)
@@ -38,9 +38,13 @@ func NewApp(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, 
 		sqlrepository.NewCollectionRepository(queries),
 		credentials,
 		logger,
+		businessMetrics,
 	)
+	if err := service.RefreshMoviesCurrent(ctx); err != nil {
+		logger.WarnContext(ctx, "Failed to initialize current movie count metric", "error", err)
+	}
 	handler := httptransport.NewHandler(service, logger, cfg.TokenTTL)
-	router, err := httptransport.NewRouter(handler, logger)
+	router, err := httptransport.NewRouter(handler, logger, httpMetrics)
 	if err != nil {
 		database.Close()
 		return nil, err

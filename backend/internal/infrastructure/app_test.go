@@ -33,14 +33,14 @@ func TestAppStartupErrors(t *testing.T) {
 	t.Run("invalid credentials", func(t *testing.T) {
 		cfg := appTestConfig()
 		cfg.JWTSecret = "short"
-		app, err := NewApp(context.Background(), cfg, logger)
+		app, err := NewApp(context.Background(), cfg, logger, nil, nil)
 		require.Error(t, err, "app=%v err=%v", app, err)
 		require.Nil(t, app, "app=%v err=%v", app, err)
 	})
 	t.Run("invalid database URL", func(t *testing.T) {
 		cfg := appTestConfig()
 		cfg.PostgresURL = "://invalid"
-		app, err := NewApp(context.Background(), cfg, logger)
+		app, err := NewApp(context.Background(), cfg, logger, nil, nil)
 		require.Error(t, err, "app=%v err=%v", app, err)
 		require.Nil(t, app, "app=%v err=%v", app, err)
 	})
@@ -49,7 +49,7 @@ func TestAppStartupErrors(t *testing.T) {
 		cfg.PostgresURL = "postgres://test:test@127.0.0.1:1/test?sslmode=disable"
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
-		app, err := NewApp(ctx, cfg, logger)
+		app, err := NewApp(ctx, cfg, logger, nil, nil)
 		require.Nil(t, app, "app=%v err=%v", app, err)
 		require.ErrorIs(t, err, context.Canceled, "app=%v err=%v", app, err)
 	})
@@ -62,7 +62,7 @@ func TestAppPostgresLifecycle(t *testing.T) {
 	require.NoError(t, err)
 	cfg.HTTPAddr = listener.Addr().String()
 	require.NoError(t, listener.Close())
-	app, err := NewApp(context.Background(), cfg, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	app, err := NewApp(context.Background(), cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), nil, nil)
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)

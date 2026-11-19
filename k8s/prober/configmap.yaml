@@ -1,0 +1,12 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prober-configmap
+  namespace: traci
+data:
+  TARGET_URL: "http://traci-service:8080/catalog"
+  AUTH_URL: "http://traci-service:8080/auth/login"
+  WORKERS: "9999"
+  TIMEOUT: "5s"
+...

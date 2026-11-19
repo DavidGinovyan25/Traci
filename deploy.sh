@@ -4,8 +4,8 @@ set -euo pipefail
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 
 minikube kubectl -- apply -f k8s/app/namespace.yaml
-minikube kubectl -- apply -f k8s/app/configmap.yaml -f k8s/app/secret.yaml -f k8s/app/service.yaml -f k8s/app/postgres.yaml
-minikube kubectl -- rollout status statefulset/traci-postgres -n traci --timeout=120s
+minikube kubectl -- apply -f k8s/app/configmap.yaml -f k8s/app/service.yaml
+./setup_postgres_exporter.sh
 
 minikube kubectl -- exec -n traci traci-postgres-0 -- \
   sh -c 'for attempt in $(seq 1 60); do pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" && exit 0; sleep 2; done; exit 1'
