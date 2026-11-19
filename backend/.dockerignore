@@ -1,4 +1,12 @@
 .env
 .env.*
+.git
+.idea
+.vscode
+.zed
 bin
 *_test.go
+*.test
+*.out
+*.log
+coverage
