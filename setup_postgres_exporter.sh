@@ -4,17 +4,12 @@ set -euo pipefail
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="$PROJECT_ROOT/backend/.env"
 
-minikube kubectl -- create secret generic traci-secret \
+minikube kubectl -- create secret generic my-secret \
   -n traci \
-  --from-env-file=<(grep -E '^(POSTGRES_PASSWORD|JWT_SECRET)=' "$ENV_FILE") \
+  --from-env-file=<(grep -E '^(POSTGRES_PASSWORD|JWT_SECRET|DATA_SOURCE_PASS|EMAIL|PASSWORD)=' "$ENV_FILE") \
   --dry-run=client -o yaml |
   minikube kubectl -- apply -f -
 
-minikube kubectl -- create secret generic traci-exporter-secret \
-  -n traci \
-  --from-env-file=<(grep '^DATA_SOURCE_PASS=' "$ENV_FILE") \
-  --dry-run=client -o yaml |
-  minikube kubectl -- apply -f -
 
 minikube kubectl -- apply -f "$PROJECT_ROOT/k8s/app/postgres.yaml"
 minikube kubectl -- rollout status statefulset/traci-postgres -n traci --timeout=180s
