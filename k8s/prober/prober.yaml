@@ -1,0 +1,19 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: traci-prober
+  namespace: traci
+spec:
+  template:
+    spec:
+      containers:
+      - name: traci-prober
+        image: traci-prober:v1
+        imagePullPolicy: Never
+        envFrom:
+        - configMapRef:
+            name: prober-configmap
+        - secretRef:
+            name: my-secret
+      restartPolicy: Never
+  backoffLimit: 0
