@@ -48,14 +48,14 @@ spec:
         - name: POSTGRES_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: traci-secret
+              name: my-secret
               key: POSTGRES_PASSWORD
         - name: PGDATA
           value: /var/lib/postgresql/data/pgdata
         - name: DATA_SOURCE_PASS
           valueFrom:
             secretKeyRef:
-              name: traci-exporter-secret
+              name: my-secret
               key: DATA_SOURCE_PASS
         ports:
         - containerPort: 5432
@@ -79,7 +79,7 @@ spec:
         - name: DATA_SOURCE_PASS
           valueFrom:
             secretKeyRef:
-              name: traci-exporter-secret
+              name: my-secret
               key: DATA_SOURCE_PASS
         ports:
         - containerPort: 9187

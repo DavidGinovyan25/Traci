@@ -31,7 +31,7 @@ spec:
         - configMapRef:
             name: my-configmap
         - secretRef:
-            name: traci-secret
+            name: my-secret
         env:
         - name: POSTGRES_URL
           value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@traci-postgres:5432/$(POSTGRES_DB)?sslmode=disable"
