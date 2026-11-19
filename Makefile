@@ -57,6 +57,7 @@ clear:
 images-build:
 	docker build -f backend/cmd/traci/Dockerfile -t traci-backend:v1 backend
 	docker build -t traci-frontend:v1 frontend
+	docker build -t traci-prober:v1 prober
 
 minikube-load: images-build
 	minikube image load traci-backend:v1
